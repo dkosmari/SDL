@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2018 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 2022 GaryOderNichts <garyodernichts@gmail.com>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -18,21 +18,27 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-
 #include "../../SDL_internal.h"
-#include "../SDL_thread_c.h"
 
+#ifndef SDL_shaders_wiiu_h
+#define SDL_shaders_wiiu_h
 
-SDL_TLSData *
-SDL_SYS_GetTLSData(void)
-{
-    return SDL_Generic_GetTLSData();
-}
+#if SDL_VIDEO_RENDER_WIIU
 
-int
-SDL_SYS_SetTLSData(SDL_TLSData *data)
-{
-    return SDL_Generic_SetTLSData(data);
-}
+#include <whb/gfx.h>
 
-/* vi: set ts=4 sw=4 expandtab: */
+typedef enum {
+    SHADER_INVALID = -1,
+    SHADER_COLOR,
+    SHADER_TEXTURE,
+    NUM_SHADERS
+} WIIU_ShaderType;
+
+void WIIU_SDL_CreateShaders(void);
+void WIIU_SDL_DestroyShaders(void);
+void WIIU_SDL_SelectShader(WIIU_ShaderType shader);
+WHBGfxShaderGroup* WIIU_SDL_GetShaderGroup(WIIU_ShaderType shader);
+
+#endif /* SDL_VIDEO_RENDER_WIIU */
+
+#endif /* SDL_shaders_wiiu_h */

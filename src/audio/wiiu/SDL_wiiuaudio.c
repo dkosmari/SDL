@@ -59,7 +59,7 @@ static SDL_AudioDevice* cb_this;
 /*  +1, but never goes above NUM_BUFFERS */
 #define next_id(id) (id + 1) % NUM_BUFFERS
 
-static int WIIUAUDIO_OpenDevice(_THIS, void* handle, const char* devname, int iscapture) {
+static int WIIUAUDIO_OpenDevice(_THIS, const char* devname) {
     AXVoiceOffsets offs;
     AXVoiceVeData vol = {
         .volume = 0x8000,
@@ -370,7 +370,7 @@ static void WIIUAUDIO_ThreadInit(_THIS) {
     OSSetThreadPriority(currentThread, priority);
 }
 
-static int WIIUAUDIO_Init(SDL_AudioDriverImpl* impl) {
+static SDL_bool WIIUAUDIO_Init(SDL_AudioDriverImpl* impl) {
     impl->OpenDevice = WIIUAUDIO_OpenDevice;
     impl->PlayDevice = WIIUAUDIO_PlayDevice;
     impl->WaitDevice = WIIUAUDIO_WaitDevice;
@@ -378,9 +378,9 @@ static int WIIUAUDIO_Init(SDL_AudioDriverImpl* impl) {
     impl->CloseDevice = WIIUAUDIO_CloseDevice;
     impl->ThreadInit = WIIUAUDIO_ThreadInit;
 
-    impl->OnlyHasDefaultOutputDevice = 1;
+    impl->OnlyHasDefaultOutputDevice = SDL_TRUE;
 
-    return 1;
+    return SDL_TRUE;
 }
 
 AudioBootStrap WIIUAUDIO_bootstrap = {

@@ -48,8 +48,6 @@
 
 #include <proc_ui/procui.h>
 
-#include "wiiu_shaders.h"
-
 static int WIIU_VideoInit(_THIS);
 static int WIIU_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *mode);
 static void WIIU_VideoQuit(_THIS);
@@ -70,9 +68,6 @@ static int WIIU_VideoInit(_THIS)
 	}
 	WHBGfxInit();
 
-	// setup shader
-	wiiuInitTextureShader();
-
 	// add default mode (1280x720)
 	mode.format = SDL_PIXELFORMAT_RGBA8888;
 	mode.w = SCREEN_WIDTH;
@@ -89,13 +84,14 @@ static int WIIU_VideoInit(_THIS)
 
 static void WIIU_VideoQuit(_THIS)
 {
-	wiiuFreeTextureShader();
 	WHBGfxShutdown();
 	if (using_whb_proc) WHBProcShutdown();
 }
 
-static int WIIU_CreateSDLWindow(_THIS, SDL_Window *window) {
-	SDL_SetKeyboardFocus(window);
+static int WIIU_CreateSDLWindow(_THIS, SDL_Window *window)
+{
+    SDL_SetMouseFocus(window);
+    SDL_SetKeyboardFocus(window);
 	return 0;
 }
 
@@ -106,11 +102,6 @@ static int WIIU_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode
 
 static void WIIU_PumpEvents(_THIS)
 {
-}
-
-static int WIIU_Available(void)
-{
-	return 1;
 }
 
 static void WIIU_DeleteDevice(SDL_VideoDevice *device)
@@ -141,7 +132,7 @@ static SDL_VideoDevice *WIIU_CreateDevice(int devindex)
 
 VideoBootStrap WIIU_bootstrap = {
 	"WiiU", "Video driver for Nintendo WiiU",
-	WIIU_Available, WIIU_CreateDevice
+	WIIU_CreateDevice
 };
 
 #endif /* SDL_VIDEO_DRIVER_WIIU */

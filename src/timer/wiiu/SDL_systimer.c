@@ -49,8 +49,8 @@ SDL_TicksQuit(void)
     ticks_started = SDL_FALSE;
 }
 
-Uint32
-SDL_GetTicks(void)
+Uint64
+SDL_GetTicks64(void)
 {
     OSTime now;
 
@@ -59,7 +59,7 @@ SDL_GetTicks(void)
     }
 
     now = OSGetSystemTime();
-    return (Uint32)OSTicksToMilliseconds(now - start);
+    return (Uint64)OSTicksToMilliseconds(now - start);
 }
 
 Uint64

@@ -2,6 +2,7 @@
   Simple DirectMedia Layer
   Copyright (C) 2018-2019 Ash Logan <ash@heyquark.com>
   Copyright (C) 2018-2019 Roberto Van Eeden <r.r.qwertyuiop.r.r@gmail.com>
+  Copyright (C) 2022 GaryOderNichts <garyodernichts@gmail.com>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -24,47 +25,29 @@
 #ifndef SDL_render_wiiu_h
 #define SDL_render_wiiu_h
 
+#if SDL_VIDEO_RENDER_WIIU
+
 #include "../SDL_sysrender.h"
 #include "SDL_pixels.h"
+#include "SDL_shaders_wiiu.h"
+
 #include <gx2r/buffer.h>
 #include <gx2/context.h>
 #include <gx2/sampler.h>
 #include <gx2/texture.h>
 #include <gx2/surface.h>
 #include <gx2/event.h>
+#include <gx2/utils.h>
 
 /* Driver internal data structures */
-typedef struct WIIUVec2 WIIUVec2;
-typedef struct WIIUVec3 WIIUVec3;
-typedef struct WIIUVec4 WIIUVec4;
-typedef struct WIIUPixFmt WIIUPixFmt;
+typedef struct WIIU_PixFmt WIIU_PixFmt;
 typedef struct WIIU_RenderAllocData WIIU_RenderAllocData;
 typedef struct WIIU_TextureDrawData WIIU_TextureDrawData;
+typedef struct WIIU_DrawState WIIU_DrawState;
 typedef struct WIIU_RenderData WIIU_RenderData;
 typedef struct WIIU_TextureData WIIU_TextureData;
 
-struct WIIUVec2
-{
-    union { float x, r; };
-    union { float y, g; };
-};
-
-struct WIIUVec3
-{
-    union { float x, r; };
-    union { float y, g; };
-    union { float z, b; };
-};
-
-struct WIIUVec4
-{
-    union { float x, r; };
-    union { float y, g; };
-    union { float z, b; };
-    union { float w, a; };
-};
-
-struct WIIUPixFmt
+struct WIIU_PixFmt
 {
     GX2SurfaceFormat fmt;
     uint32_t compMap;
@@ -82,13 +65,33 @@ struct WIIU_TextureDrawData
     WIIU_TextureData *texdata;
 };
 
+struct WIIU_DrawState
+{
+    SDL_Texture *target;
+    SDL_Texture *texture;
+
+    SDL_Rect viewport;
+    SDL_bool viewportDirty;
+    int drawableWidth, drawableHeight;
+    float projectionMatrix[4][4];
+
+    SDL_bool cliprectEnabledDirty;
+    SDL_bool cliprectEnabled;
+    SDL_bool cliprectDirty;
+    SDL_Rect cliprect;
+
+    SDL_BlendMode blendMode;
+
+    WIIU_ShaderType shader;
+};
+
 struct WIIU_RenderData
 {
     GX2ContextState *ctx;
     WIIU_RenderAllocData *listfree;
     WIIU_TextureDrawData *listdraw;
-    WIIUVec4 u_viewSize;
     SDL_Texture windowTex;
+    WIIU_DrawState drawState;
 };
 
 struct WIIU_TextureData
@@ -96,8 +99,6 @@ struct WIIU_TextureData
     GX2Sampler sampler;
     GX2Texture texture;
     GX2ColorBuffer cbuf;
-    WIIUVec4 u_texSize;
-    WIIUVec4 u_mod;
     int isRendering;
 };
 
@@ -108,33 +109,25 @@ struct WIIU_TextureData
 SDL_Renderer *WIIU_SDL_CreateRenderer(SDL_Window * window, Uint32 flags);
 void WIIU_SDL_WindowEvent(SDL_Renderer * renderer,
                              const SDL_WindowEvent *event);
-int WIIU_SDL_GetOutputSize(SDL_Renderer * renderer, int *w, int *h);
+SDL_bool WIIU_SDL_SupportsBlendMode(SDL_Renderer * renderer, SDL_BlendMode blendMode);
 int WIIU_SDL_CreateTexture(SDL_Renderer * renderer, SDL_Texture * texture);
-int WIIU_SDL_SetTextureColorMod(SDL_Renderer * renderer,
-                                SDL_Texture * texture);
-int WIIU_SDL_SetTextureAlphaMod(SDL_Renderer * renderer,
-                                SDL_Texture * texture);
 int WIIU_SDL_UpdateTexture(SDL_Renderer * renderer, SDL_Texture * texture,
                        const SDL_Rect * rect, const void *pixels,
                        int pitch);
 int WIIU_SDL_LockTexture(SDL_Renderer * renderer, SDL_Texture * texture,
                      const SDL_Rect * rect, void **pixels, int *pitch);
 void WIIU_SDL_UnlockTexture(SDL_Renderer * renderer, SDL_Texture * texture);
+void WIIU_SDL_SetTextureScaleMode(SDL_Renderer * renderer, SDL_Texture * texture, SDL_ScaleMode scaleMode);
 int WIIU_SDL_SetRenderTarget(SDL_Renderer * renderer, SDL_Texture * texture);
-int WIIU_SDL_UpdateViewport(SDL_Renderer * renderer);
-int WIIU_SDL_UpdateClipRect(SDL_Renderer * renderer);
-int WIIU_SDL_RenderClear(SDL_Renderer * renderer);
-int WIIU_SDL_RenderDrawPoints(SDL_Renderer * renderer,
-                          const SDL_FPoint * points, int count);
-int WIIU_SDL_RenderDrawLines(SDL_Renderer * renderer,
-                         const SDL_FPoint * points, int count);
-int WIIU_SDL_RenderFillRects(SDL_Renderer * renderer,
-                         const SDL_FRect * rects, int count);
-int WIIU_SDL_RenderCopy(SDL_Renderer * renderer, SDL_Texture * texture,
-                    const SDL_Rect * srcrect, const SDL_FRect * dstrect);
-int WIIU_SDL_RenderCopyEx(SDL_Renderer * renderer, SDL_Texture * texture,
-                      const SDL_Rect * srcrect, const SDL_FRect * dstrect,
-                      const double angle, const SDL_FPoint * center, const SDL_RendererFlip flip);
+int WIIU_SDL_QueueSetViewport(SDL_Renderer * renderer, SDL_RenderCommand * cmd);
+int WIIU_SDL_QueueSetDrawColor(SDL_Renderer * renderer, SDL_RenderCommand * cmd);
+int WIIU_SDL_QueueDrawPoints(SDL_Renderer * renderer, SDL_RenderCommand * cmd, const SDL_FPoint * points, int count);
+int WIIU_SDL_QueueDrawLines(SDL_Renderer * renderer, SDL_RenderCommand * cmd, const SDL_FPoint * points, int count);
+int WIIU_SDL_QueueGeometry(SDL_Renderer * renderer, SDL_RenderCommand * cmd, SDL_Texture * texture,
+        const float * xy, int xy_stride, const SDL_Color * color, int color_stride, const float * uv, int uv_stride,
+        int num_vertices, const void * indices, int num_indices, int size_indices,
+        float scale_x, float scale_y);
+int WIIU_SDL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertices, size_t vertsize);
 int WIIU_SDL_RenderReadPixels(SDL_Renderer * renderer, const SDL_Rect * rect,
                           Uint32 format, void * pixels, int pitch);
 void WIIU_SDL_RenderPresent(SDL_Renderer * renderer);
@@ -213,105 +206,106 @@ static inline SDL_Texture * WIIU_GetRenderTarget(SDL_Renderer* renderer)
     return &data->windowTex;
 }
 
-static inline WIIUPixFmt SDLFormatToWIIUFormat(Uint32 format)
+static inline WIIU_PixFmt WIIU_SDL_GetPixFmt(Uint32 format)
 {
-    WIIUPixFmt outFmt = { /* sane defaults? */
-        .fmt = GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8,
-        .compMap = 0x00010203,
-    };
+    WIIU_PixFmt outFmt = { .fmt = -1, .compMap = 0 };
 
     switch (format) {
         /* packed16 formats: 4 bits/channel */
-        case SDL_PIXELFORMAT_RGB444: /* aka XRGB4444 */
         case SDL_PIXELFORMAT_ARGB4444: {
             outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R4_G4_B4_A4;
-            outFmt.compMap = 0x01020300;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_G, GX2_SQ_SEL_B, GX2_SQ_SEL_A, GX2_SQ_SEL_R);
             break;
         }
         case SDL_PIXELFORMAT_RGBA4444: {
             outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R4_G4_B4_A4;
-            outFmt.compMap = 0x00010203;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_R, GX2_SQ_SEL_G, GX2_SQ_SEL_B, GX2_SQ_SEL_A);
             break;
         }
         case SDL_PIXELFORMAT_ABGR4444: {
             outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R4_G4_B4_A4;
-            outFmt.compMap = 0x03020100;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_A, GX2_SQ_SEL_B, GX2_SQ_SEL_G, GX2_SQ_SEL_R);
             break;
         }
         case SDL_PIXELFORMAT_BGRA4444: {
             outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R4_G4_B4_A4;
-            outFmt.compMap = 0x02010003;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_B, GX2_SQ_SEL_G, GX2_SQ_SEL_R, GX2_SQ_SEL_A);
             break;
         }
 
         /* packed16 formats: 5 bits/channel */
-        case SDL_PIXELFORMAT_RGB555: /* aka XRGB1555 */
         case SDL_PIXELFORMAT_ARGB1555: {
             outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R5_G5_B5_A1;
-            outFmt.compMap = 0x01020300;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_G, GX2_SQ_SEL_B, GX2_SQ_SEL_A, GX2_SQ_SEL_R);
             break;
         }
-        case SDL_PIXELFORMAT_BGR555: /* aka XRGB1555 */
         case SDL_PIXELFORMAT_ABGR1555: {
             outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R5_G5_B5_A1;
-            outFmt.compMap = 0x03020100;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_A, GX2_SQ_SEL_B, GX2_SQ_SEL_G, GX2_SQ_SEL_R);
             break;
         }
         case SDL_PIXELFORMAT_RGBA5551: {
             outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R5_G5_B5_A1;
-            outFmt.compMap = 0x00010203;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_R, GX2_SQ_SEL_G, GX2_SQ_SEL_B, GX2_SQ_SEL_A);
             break;
         }
         case SDL_PIXELFORMAT_BGRA5551: {
             outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R5_G5_B5_A1;
-            outFmt.compMap = 0x02010003;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_B, GX2_SQ_SEL_G, GX2_SQ_SEL_R, GX2_SQ_SEL_A);
             break;
         }
 
         /* packed16 formats: 565 */
         case SDL_PIXELFORMAT_RGB565: {
             outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R5_G6_B5;
-            outFmt.compMap = 0x00010203;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_R, GX2_SQ_SEL_G, GX2_SQ_SEL_B, GX2_SQ_SEL_A);
             break;
         }
         case SDL_PIXELFORMAT_BGR565: {
             outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R5_G6_B5;
-            outFmt.compMap = 0x02010003;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_B, GX2_SQ_SEL_G, GX2_SQ_SEL_R, GX2_SQ_SEL_A);
             break;
         }
 
         /* packed32 formats */
-        case SDL_PIXELFORMAT_RGBA8888:
         case SDL_PIXELFORMAT_RGBX8888: {
             outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8;
-            outFmt.compMap = 0x00010203;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_R, GX2_SQ_SEL_G, GX2_SQ_SEL_B, GX2_SQ_SEL_1);
+            break;
+        }
+        case SDL_PIXELFORMAT_RGBA8888: {
+            outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_R, GX2_SQ_SEL_G, GX2_SQ_SEL_B, GX2_SQ_SEL_A);
             break;
         }
         case SDL_PIXELFORMAT_ARGB8888: {
             outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8;
-            outFmt.compMap = 0x01020300;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_G, GX2_SQ_SEL_B, GX2_SQ_SEL_A, GX2_SQ_SEL_R);
             break;
         }
-        case SDL_PIXELFORMAT_BGRA8888:
         case SDL_PIXELFORMAT_BGRX8888: {
             outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8;
-            outFmt.compMap = 0x02010003;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_B, GX2_SQ_SEL_G, GX2_SQ_SEL_R, GX2_SQ_SEL_1);
             break;
         }
-        case SDL_PIXELFORMAT_ABGR8888:
-        case SDL_PIXELFORMAT_BGR888: {
+        case SDL_PIXELFORMAT_BGRA8888: {
             outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8;
-            outFmt.compMap = 0x03020100;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_B, GX2_SQ_SEL_G, GX2_SQ_SEL_R, GX2_SQ_SEL_A);
+            break;
+        }
+        case SDL_PIXELFORMAT_ABGR8888: {
+            outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_A, GX2_SQ_SEL_B, GX2_SQ_SEL_G, GX2_SQ_SEL_R);
             break;
         }
         case SDL_PIXELFORMAT_ARGB2101010: {
             outFmt.fmt = GX2_SURFACE_FORMAT_UNORM_R10_G10_B10_A2;
-            outFmt.compMap = 0x01020300;
+            outFmt.compMap = GX2_COMP_MAP(GX2_SQ_SEL_G, GX2_SQ_SEL_B, GX2_SQ_SEL_A, GX2_SQ_SEL_R);
             break;
         }
         default: {
-            /* TODO return an error */
             printf("SDL: WiiU format not recognised (SDL: %08X)\n", format);
+            outFmt.fmt = -1;
             break;
         }
     }
@@ -319,4 +313,52 @@ static inline WIIUPixFmt SDLFormatToWIIUFormat(Uint32 format)
     return outFmt;
 }
 
-#endif //SDL_render_wiiu_h
+static inline GX2BlendMode WIIU_SDL_GetBlendMode(SDL_BlendFactor factor)
+{
+    switch (factor) {
+        case SDL_BLENDFACTOR_ZERO:
+            return GX2_BLEND_MODE_ZERO;
+        case SDL_BLENDFACTOR_ONE:
+            return GX2_BLEND_MODE_ONE;
+        case SDL_BLENDFACTOR_SRC_COLOR:
+            return GX2_BLEND_MODE_SRC_COLOR;
+        case SDL_BLENDFACTOR_ONE_MINUS_SRC_COLOR:
+            return GX2_BLEND_MODE_INV_SRC_COLOR;
+        case SDL_BLENDFACTOR_SRC_ALPHA:
+            return GX2_BLEND_MODE_SRC_ALPHA;
+        case SDL_BLENDFACTOR_ONE_MINUS_SRC_ALPHA:
+            return GX2_BLEND_MODE_INV_SRC_ALPHA;
+        case SDL_BLENDFACTOR_DST_COLOR:
+            return GX2_BLEND_MODE_DST_COLOR;
+        case SDL_BLENDFACTOR_ONE_MINUS_DST_COLOR:
+            return GX2_BLEND_MODE_INV_DST_COLOR;
+        case SDL_BLENDFACTOR_DST_ALPHA:
+            return GX2_BLEND_MODE_DST_ALPHA;
+        case SDL_BLENDFACTOR_ONE_MINUS_DST_ALPHA:
+            return GX2_BLEND_MODE_INV_DST_COLOR;
+        default:
+            return -1;
+    }
+}
+
+static inline GX2BlendCombineMode WIIU_SDL_GetBlendCombineMode(SDL_BlendOperation operation)
+{
+    switch (operation) {
+        case SDL_BLENDOPERATION_ADD:
+            return GX2_BLEND_COMBINE_MODE_ADD;
+        case SDL_BLENDOPERATION_SUBTRACT:
+            return GX2_BLEND_COMBINE_MODE_SUB;
+        case SDL_BLENDOPERATION_REV_SUBTRACT:
+            return GX2_BLEND_COMBINE_MODE_REV_SUB;
+        case SDL_BLENDOPERATION_MINIMUM:
+            return GX2_BLEND_COMBINE_MODE_MIN;
+        case SDL_BLENDOPERATION_MAXIMUM:
+            return GX2_BLEND_COMBINE_MODE_MAX;
+        default:
+            return -1;
+    }
+}
+
+#endif /* SDL_VIDEO_RENDER_WIIU */
+
+#endif /* SDL_render_wiiu_h */

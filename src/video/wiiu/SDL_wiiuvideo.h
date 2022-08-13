@@ -25,21 +25,10 @@
 #ifndef SDL_wiiuvideo_h
 #define SDL_wiiuvideo_h
 
-#include <gx2/texture.h>
-#include "SDL_surface.h"
+#if SDL_VIDEO_DRIVER_WIIU
 
-#define WIIU_WINDOW_DATA "_SDL_WiiUData"
-typedef struct
-{
-    SDL_Surface *surface;
-    GX2Texture texture;
-} WIIU_WindowData;
 
-typedef struct
-{
-    SDL_bool tv_window_exists;
-    SDL_bool drc_window_exists;
-    SDL_bool mirrored_window_exists;
-} WIIU_VideoDeviceData;
 
-#endif //SDL_wiiuvideo_h
+#endif /* SDL_VIDEO_DRIVER_WIIU */
+
+#endif /* SDL_wiiuvideo_h */

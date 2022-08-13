@@ -2,6 +2,7 @@
   Simple DirectMedia Layer
   Copyright (C) 2018-2019 Ash Logan <ash@heyquark.com>
   Copyright (C) 2018-2019 Roberto Van Eeden <r.r.qwertyuiop.r.r@gmail.com>
+  Copyright (C) 2022 GaryOderNichts <garyodernichts@gmail.com>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -39,7 +40,7 @@
 int WIIU_SDL_CreateTexture(SDL_Renderer * renderer, SDL_Texture * texture)
 {
     BOOL res;
-    WIIUPixFmt gx2_fmt;
+    WIIU_PixFmt gx2_fmt;
     GX2RResourceFlags surface_flags;
     WIIU_TextureData *tdata = (WIIU_TextureData *) SDL_calloc(1, sizeof(*tdata));
     if (!tdata) {
@@ -53,8 +54,10 @@ int WIIU_SDL_CreateTexture(SDL_Renderer * renderer, SDL_Texture * texture)
         GX2InitSampler(&tdata->sampler, GX2_TEX_CLAMP_MODE_CLAMP, GX2_TEX_XY_FILTER_MODE_LINEAR);
     }
 
-
-    gx2_fmt = SDLFormatToWIIUFormat(texture->format);
+    gx2_fmt = WIIU_SDL_GetPixFmt(texture->format);
+    if (gx2_fmt.fmt == -1) {
+        return SDL_SetError("Unsupported texture format");
+    }
 
     /* Setup GX2Texture */
     tdata->texture.surface.width = texture->w;
@@ -107,20 +110,6 @@ int WIIU_SDL_CreateTexture(SDL_Renderer * renderer, SDL_Texture * texture)
         return SDL_OutOfMemory();
     }
 
-    /* Initialize texture size uniform */
-    tdata->u_texSize = (WIIUVec4) {
-        .x = texture->w,
-        .y = texture->h,
-    };
-
-    /* Initialize color modifier uniform */
-    tdata->u_mod = (WIIUVec4) {
-        .r = (float)texture->r / 255.0f,
-        .g = (float)texture->g / 255.0f,
-        .b = (float)texture->b / 255.0f,
-        .a = (float)texture->a / 255.0f,
-    };
-
     /* Setup texture driver data */
     texture->driverdata = tdata;
 
@@ -161,6 +150,17 @@ void WIIU_SDL_UnlockTexture(SDL_Renderer * renderer, SDL_Texture * texture)
     GX2RUnlockSurfaceEx(&tdata->texture.surface, 0, 0);
 }
 
+void WIIU_SDL_SetTextureScaleMode(SDL_Renderer * renderer, SDL_Texture * texture, SDL_ScaleMode scaleMode)
+{
+    WIIU_TextureData *tdata = (WIIU_TextureData *) texture->driverdata;
+
+    if (texture->scaleMode == SDL_ScaleModeNearest) {
+        GX2InitSampler(&tdata->sampler, GX2_TEX_CLAMP_MODE_CLAMP, GX2_TEX_XY_FILTER_MODE_POINT);
+    } else {
+        GX2InitSampler(&tdata->sampler, GX2_TEX_CLAMP_MODE_CLAMP, GX2_TEX_XY_FILTER_MODE_LINEAR);
+    }
+}
+
 int WIIU_SDL_UpdateTexture(SDL_Renderer * renderer, SDL_Texture * texture,
                            const SDL_Rect * rect, const void *pixels, int pitch)
 {
@@ -179,28 +179,6 @@ int WIIU_SDL_UpdateTexture(SDL_Renderer * renderer, SDL_Texture * texture,
     }
 
     WIIU_SDL_UnlockTexture(renderer, texture);
-
-    return 0;
-}
-
-int WIIU_SDL_SetTextureColorMod(SDL_Renderer * renderer, SDL_Texture * texture)
-{
-    WIIU_TextureData *tdata = (WIIU_TextureData *) texture->driverdata;
-
-    /* Compute color mod */
-    tdata->u_mod.r = (float)texture->r / 255.0f;
-    tdata->u_mod.g = (float)texture->g / 255.0f;
-    tdata->u_mod.b = (float)texture->b / 255.0f;
-
-    return 0;
-}
-
-int WIIU_SDL_SetTextureAlphaMod(SDL_Renderer * renderer, SDL_Texture * texture)
-{
-    WIIU_TextureData *tdata = (WIIU_TextureData *) texture->driverdata;
-
-    /* Compute alpha mod */
-    tdata->u_mod.a = (float)texture->a / 255.0f;
 
     return 0;
 }

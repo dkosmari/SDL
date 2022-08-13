@@ -46,7 +46,7 @@ thread_cleanup(OSThread *thread, void *stack)
 {
 }
 
-int SDL_SYS_CreateThread(SDL_Thread *thread, void *args)
+int SDL_SYS_CreateThread(SDL_Thread *thread)
 {
     OSThread *handle = (OSThread *)memalign(16, sizeof(OSThread));
     unsigned int stackSize = thread->stacksize ? thread->stacksize : 0x8000;
@@ -55,7 +55,7 @@ int SDL_SYS_CreateThread(SDL_Thread *thread, void *args)
 
     if (!OSCreateThread(handle,
                         (OSThreadEntryPointFn)SDL_RunThread,
-                        (int32_t)args,
+                        (int32_t)thread,
                         NULL,
                         stackTop,
                         stackSize,

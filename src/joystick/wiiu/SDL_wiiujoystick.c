@@ -46,6 +46,26 @@ static int deviceMap[MAX_CONTROLLERS];
 static SDL_JoystickID instanceMap[MAX_CONTROLLERS];
 static WPADExtensionType lastKnownExts[WIIU_NUM_WPADS];
 
+static int WIIU_JoystickInit(void);
+static int WIIU_JoystickGetCount(void);
+static void WIIU_JoystickDetect(void);
+static const char *WIIU_JoystickGetDeviceName(int device_index);
+static int WIIU_JoystickGetDevicePlayerIndex(int device_index);
+static void WIIU_JoystickSetDevicePlayerIndex(int device_index, int player_index);
+static SDL_JoystickGUID WIIU_JoystickGetDeviceGUID(int device_index);
+static SDL_JoystickID WIIU_JoystickGetDeviceInstanceID(int device_index);
+static int WIIU_JoystickOpen(SDL_Joystick *joystick, int device_index);
+static int WIIU_JoystickRumble(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble);
+static int WIIU_JoystickRumbleTriggers(SDL_Joystick *joystick, Uint16 left_rumble, Uint16 right_rumble);
+static Uint32 WIIU_JoystickGetCapabilities(SDL_Joystick *joystick);
+static int WIIU_JoystickSetLED(SDL_Joystick *joystick, Uint8 red, Uint8 green, Uint8 blue);
+static int WIIU_JoystickSendEffect(SDL_Joystick *joystick, const void *data, int size);
+static int WIIU_JoystickSetSensorsEnabled(SDL_Joystick *joystick, SDL_bool enabled);
+static void WIIU_JoystickUpdate(SDL_Joystick *joystick);
+static void WIIU_JoystickClose(SDL_Joystick *joystick);
+static void WIIU_JoystickQuit(void);
+static SDL_bool WIIU_JoystickGetGamepadMapping(int device_index, SDL_GamepadMapping * out);
+
 static int WIIU_GetDeviceForIndex(int device_index) {
 	return deviceMap[device_index];
 }
@@ -237,6 +257,10 @@ static int WIIU_JoystickGetDevicePlayerIndex(int device_index)
 
 }
 
+static void WIIU_JoystickSetDevicePlayerIndex(int device_index, int player_index)
+{
+}
+
 /* Function to return the stable GUID for a plugged in device */
 static SDL_JoystickGUID WIIU_JoystickGetDeviceGUID(int device_index)
 {
@@ -264,7 +288,7 @@ static int WIIU_JoystickOpen(SDL_Joystick *joystick, int device_index)
 	int wiiu_device = WIIU_GetDeviceForIndex(device_index);
 	switch (wiiu_device) {
 		case WIIU_DEVICE_GAMEPAD: {
-			SDL_AddTouch(0, "WiiU Gamepad Touchscreen");
+			SDL_AddTouch(0, SDL_TOUCH_DEVICE_DIRECT, "WiiU Gamepad Touchscreen");
 			joystick->nbuttons = SIZEOF_ARR(vpad_button_map);
 			joystick->naxes = 4;
 			joystick->nhats = 0;
@@ -323,11 +347,42 @@ static int WIIU_JoystickOpen(SDL_Joystick *joystick, int device_index)
 }
 
 /* Rumble functionality */
-static int WIIU_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble, Uint32 duration_ms)
+static int WIIU_JoystickRumble(SDL_Joystick *joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble)
 {
 	/* TODO */
 	return SDL_Unsupported();
 }
+
+static int WIIU_JoystickRumbleTriggers(SDL_Joystick *joystick, Uint16 left_rumble, Uint16 right_rumble)
+{
+	return SDL_Unsupported();
+}
+
+/* Capability detection */
+static Uint32 WIIU_JoystickGetCapabilities(SDL_Joystick *joystick)
+{
+	/* TODO implement supported capabilities */
+	return 0;
+}
+
+/* LED functionality */
+static int WIIU_JoystickSetLED(SDL_Joystick *joystick, Uint8 red, Uint8 green, Uint8 blue)
+{
+	return SDL_Unsupported();
+}
+
+/* General effects */
+static int WIIU_JoystickSendEffect(SDL_Joystick *joystick, const void *data, int size)
+{
+	return SDL_Unsupported();
+}
+
+/* Sensor functionality */
+static int WIIU_JoystickSetSensorsEnabled(SDL_Joystick *joystick, SDL_bool enabled)
+{
+	return SDL_Unsupported();
+}
+
 
 /* Function to update the state of a joystick - called as a device poll.
  * This function shouldn't update the joystick structure directly,
@@ -365,12 +420,12 @@ static void WIIU_JoystickUpdate(SDL_Joystick *joystick)
 		VPADGetTPCalibratedPoint(VPAD_CHAN_0, &tpdata, &vpad.tpNormal);
 		if (tpdata.touched) {
 			/* Send an initial touch */
-			SDL_SendTouch(0, 0, SDL_TRUE,
+			SDL_SendTouch(0, 0, NULL, SDL_TRUE,
 					(float) tpdata.x / 1280.0f,
 					(float) tpdata.y / 720.0f, 1);
 
 			/* Always send the motion */
-			SDL_SendTouchMotion(0, 0,
+			SDL_SendTouchMotion(0, 0, NULL,
 					(float) tpdata.x / 1280.0f,
 					(float) tpdata.y / 720.0f, 1);
 
@@ -380,7 +435,7 @@ static void WIIU_JoystickUpdate(SDL_Joystick *joystick)
 			last_touched = 1;
 		} else if (last_touched) {
 			/* Finger released from screen */
-			SDL_SendTouch(0, 0, SDL_FALSE,
+			SDL_SendTouch(0, 0, NULL, SDL_FALSE,
 					(float) last_touch_x / 1280.0f,
 					(float) last_touch_y / 720.0f, 1);
 			last_touched = 0;
@@ -512,6 +567,12 @@ static void WIIU_JoystickQuit(void)
 {
 }
 
+/* Function to get the autodetected controller mapping; returns false if there isn't any. */
+static SDL_bool WIIU_JoystickGetGamepadMapping(int device_index, SDL_GamepadMapping * out)
+{
+	return SDL_FALSE;
+}
+
 SDL_JoystickDriver SDL_WIIU_JoystickDriver =
 {
 	WIIU_JoystickInit,
@@ -519,13 +580,20 @@ SDL_JoystickDriver SDL_WIIU_JoystickDriver =
 	WIIU_JoystickDetect,
 	WIIU_JoystickGetDeviceName,
 	WIIU_JoystickGetDevicePlayerIndex,
+	WIIU_JoystickSetDevicePlayerIndex,
 	WIIU_JoystickGetDeviceGUID,
 	WIIU_JoystickGetDeviceInstanceID,
 	WIIU_JoystickOpen,
 	WIIU_JoystickRumble,
+	WIIU_JoystickRumbleTriggers,
+	WIIU_JoystickGetCapabilities,
+	WIIU_JoystickSetLED,
+	WIIU_JoystickSendEffect,
+	WIIU_JoystickSetSensorsEnabled,
 	WIIU_JoystickUpdate,
 	WIIU_JoystickClose,
 	WIIU_JoystickQuit,
+	WIIU_JoystickGetGamepadMapping,
 };
 
 #endif

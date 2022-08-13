@@ -2,6 +2,7 @@
   Simple DirectMedia Layer
   Copyright (C) 2018-2019 Ash Logan <ash@heyquark.com>
   Copyright (C) 2018-2019 Roberto Van Eeden <r.r.qwertyuiop.r.r@gmail.com>
+  Copyright (C) 2022 GaryOderNichts <garyodernichts@gmail.com>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -23,9 +24,6 @@
 
 #if SDL_VIDEO_RENDER_WIIU
 
-#include "../../video/wiiu/SDL_wiiuvideo.h"
-#include "../../video/wiiu/wiiu_shaders.h"
-#include "../SDL_sysrender.h"
 #include "SDL_hints.h"
 #include "SDL_render_wiiu.h"
 
@@ -34,8 +32,6 @@
 #include <gx2r/surface.h>
 
 #include <malloc.h>
-
-SDL_RenderDriver WIIU_RenderDriver;
 
 SDL_Renderer *WIIU_SDL_CreateRenderer(SDL_Window * window, Uint32 flags)
 {
@@ -50,29 +46,26 @@ SDL_Renderer *WIIU_SDL_CreateRenderer(SDL_Window * window, Uint32 flags)
 
     data = (WIIU_RenderData *) SDL_calloc(1, sizeof(*data));
     if (!data) {
-        WIIU_SDL_DestroyRenderer(renderer);
+        SDL_free(renderer);
         SDL_OutOfMemory();
         return NULL;
     }
 
     /* Setup renderer functions */
     renderer->WindowEvent = WIIU_SDL_WindowEvent;
-    renderer->GetOutputSize = WIIU_SDL_GetOutputSize;
+    renderer->SupportsBlendMode = WIIU_SDL_SupportsBlendMode;
     renderer->CreateTexture = WIIU_SDL_CreateTexture;
-    renderer->SetTextureColorMod = WIIU_SDL_SetTextureColorMod;
-    renderer->SetTextureAlphaMod = WIIU_SDL_SetTextureAlphaMod;
     renderer->UpdateTexture = WIIU_SDL_UpdateTexture;
     renderer->LockTexture = WIIU_SDL_LockTexture;
     renderer->UnlockTexture = WIIU_SDL_UnlockTexture;
+    renderer->SetTextureScaleMode = WIIU_SDL_SetTextureScaleMode;
     renderer->SetRenderTarget = WIIU_SDL_SetRenderTarget;
-    renderer->UpdateViewport = WIIU_SDL_UpdateViewport;
-    renderer->UpdateClipRect = WIIU_SDL_UpdateClipRect;
-    renderer->RenderClear = WIIU_SDL_RenderClear;
-    renderer->RenderDrawPoints = WIIU_SDL_RenderDrawPoints;
-    renderer->RenderDrawLines = WIIU_SDL_RenderDrawLines;
-    renderer->RenderFillRects = WIIU_SDL_RenderFillRects;
-    renderer->RenderCopy = WIIU_SDL_RenderCopy;
-    renderer->RenderCopyEx = WIIU_SDL_RenderCopyEx;
+    renderer->QueueSetViewport = WIIU_SDL_QueueSetViewport;
+    renderer->QueueSetDrawColor = WIIU_SDL_QueueSetDrawColor;
+    renderer->QueueDrawPoints = WIIU_SDL_QueueDrawPoints;
+    renderer->QueueDrawLines = WIIU_SDL_QueueDrawLines;
+    renderer->QueueGeometry = WIIU_SDL_QueueGeometry;
+    renderer->RunCommandQueue = WIIU_SDL_RunCommandQueue;
     renderer->RenderReadPixels = WIIU_SDL_RenderReadPixels;
     renderer->RenderPresent = WIIU_SDL_RenderPresent;
     renderer->DestroyTexture = WIIU_SDL_DestroyTexture;
@@ -82,8 +75,7 @@ SDL_Renderer *WIIU_SDL_CreateRenderer(SDL_Window * window, Uint32 flags)
     renderer->window = window;
 
     /* Prepare shaders */
-    wiiuInitTextureShader();
-    wiiuInitColorShader();
+    WIIU_SDL_CreateShaders();
 
     /* List of attibutes to free after render */
     data->listfree = NULL;
@@ -103,6 +95,12 @@ SDL_Renderer *WIIU_SDL_CreateRenderer(SDL_Window * window, Uint32 flags)
     GX2SetDepthOnlyControl(FALSE, FALSE, GX2_COMPARE_FUNC_NEVER);
     GX2SetCullOnlyControl(GX2_FRONT_FACE_CCW, FALSE, FALSE);
 
+    data->drawState.blendMode = SDL_BLENDMODE_INVALID;
+    data->drawState.shader = SHADER_INVALID;
+    data->drawState.projectionMatrix[3][0] = -1.0f;
+    data->drawState.projectionMatrix[3][1] = 1.0f;
+    data->drawState.projectionMatrix[3][3] = 1.0f;
+
     /* Make a texture for the window */
     WIIU_SDL_CreateWindowTex(renderer, window);
 
@@ -110,6 +108,26 @@ SDL_Renderer *WIIU_SDL_CreateRenderer(SDL_Window * window, Uint32 flags)
     WIIU_SDL_SetRenderTarget(renderer, NULL);
 
     return renderer;
+}
+
+SDL_bool WIIU_SDL_SupportsBlendMode(SDL_Renderer * renderer, SDL_BlendMode blendMode)
+{
+    SDL_BlendFactor srcColorFactor = SDL_GetBlendModeSrcColorFactor(blendMode);
+    SDL_BlendFactor srcAlphaFactor = SDL_GetBlendModeSrcAlphaFactor(blendMode);
+    SDL_BlendOperation colorOperation = SDL_GetBlendModeColorOperation(blendMode);
+    SDL_BlendFactor dstColorFactor = SDL_GetBlendModeDstColorFactor(blendMode);
+    SDL_BlendFactor dstAlphaFactor = SDL_GetBlendModeDstAlphaFactor(blendMode);
+    SDL_BlendOperation alphaOperation = SDL_GetBlendModeAlphaOperation(blendMode);
+
+    if (WIIU_SDL_GetBlendMode(srcColorFactor) == -1 ||
+        WIIU_SDL_GetBlendMode(srcAlphaFactor) == -1 ||
+        WIIU_SDL_GetBlendCombineMode(colorOperation) == -1 ||
+        WIIU_SDL_GetBlendMode(dstColorFactor) == -1 ||
+        WIIU_SDL_GetBlendMode(dstAlphaFactor) == -1 ||
+        WIIU_SDL_GetBlendCombineMode(alphaOperation) == -1) {
+        return SDL_FALSE;
+    }
+    return SDL_TRUE;
 }
 
 void WIIU_SDL_CreateWindowTex(SDL_Renderer * renderer, SDL_Window * window)
@@ -140,7 +158,6 @@ void WIIU_SDL_CreateWindowTex(SDL_Renderer * renderer, SDL_Window * window)
     /* Allocate a buffer for the window */
     data->windowTex = (SDL_Texture) {
         .format = SDL_PIXELFORMAT_RGBA8888,
-        .r = 255, .g = 255, .b = 255, .a = 255,
         .driverdata = WIIU_TEXTURE_MEM1_MAGIC,
         .scaleMode = s_mode,
     };
@@ -162,20 +179,10 @@ int WIIU_SDL_SetRenderTarget(SDL_Renderer * renderer, SDL_Texture * texture)
     /* Wait for the texture rendering to finish */
     WIIU_TextureCheckWaitRendering(data, tdata);
 
-    /* Update u_viewSize */
-    data->u_viewSize = (WIIUVec4) {
-        .x = (float)tdata->cbuf.surface.width,
-        .y = (float)tdata->cbuf.surface.height,
-    };
+    data->drawState.viewportDirty = SDL_TRUE;
 
     /* Update context state */
     GX2SetColorBuffer(&tdata->cbuf, GX2_RENDER_TARGET_0);
-
-    /* These may be unnecessary - see SDL_render.c: SDL_SetRenderTarget's calls
-       to UpdateViewport and UpdateClipRect. TODO for once the render is
-       basically working */
-    GX2SetViewport(0, 0, (float)tdata->cbuf.surface.width, (float)tdata->cbuf.surface.height, 0.0f, 1.0f);
-    GX2SetScissor(0, 0, (float)tdata->cbuf.surface.width, (float)tdata->cbuf.surface.height);
 
     return 0;
 }
@@ -191,8 +198,7 @@ void WIIU_SDL_DestroyRenderer(SDL_Renderer * renderer)
 
     free(data->ctx);
 
-    wiiuFreeColorShader();
-    wiiuFreeTextureShader();
+    WIIU_SDL_DestroyShaders();
 
     SDL_free(data);
     SDL_free(renderer);
@@ -234,34 +240,25 @@ SDL_RenderDriver WIIU_RenderDriver =
     .info = {
         .name = "WiiU GX2",
         .flags = SDL_RENDERER_ACCELERATED | SDL_RENDERER_PRESENTVSYNC | SDL_RENDERER_TARGETTEXTURE,
-        .num_texture_formats = 13, //21,
+        .num_texture_formats = 15,
         .texture_formats = {
-        /*  TODO: Alpha-less (X) formats */
             SDL_PIXELFORMAT_RGBA8888,
-//            SDL_PIXELFORMAT_RGBX8888,
+            SDL_PIXELFORMAT_RGBX8888,
 
-//            SDL_PIXELFORMAT_RGB444,
             SDL_PIXELFORMAT_ARGB4444,
             SDL_PIXELFORMAT_RGBA4444,
             SDL_PIXELFORMAT_ABGR4444,
             SDL_PIXELFORMAT_BGRA4444,
 
-//            SDL_PIXELFORMAT_RGB555,
             SDL_PIXELFORMAT_ARGB1555,
-//            SDL_PIXELFORMAT_BGR555,
             SDL_PIXELFORMAT_ABGR1555,
             SDL_PIXELFORMAT_RGBA5551,
             SDL_PIXELFORMAT_BGRA5551,
 
-        /*  TODO: RGB565 doesn't seem to work right, endian issue? */
-//            SDL_PIXELFORMAT_RGB565,
-//            SDL_PIXELFORMAT_BGR565,
-
             SDL_PIXELFORMAT_ARGB8888,
             SDL_PIXELFORMAT_BGRA8888,
-//            SDL_PIXELFORMAT_BGRX8888,
+            SDL_PIXELFORMAT_BGRX8888,
             SDL_PIXELFORMAT_ABGR8888,
-//            SDL_PIXELFORMAT_BGR888,
 
             SDL_PIXELFORMAT_ARGB2101010,
         },

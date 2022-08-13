@@ -77,19 +77,6 @@ static WPADProButton pro_button_map[] = {
     WPAD_PRO_STICK_R_EMULATION_RIGHT, WPAD_PRO_STICK_R_EMULATION_DOWN
 };
 
-static int WIIU_JoystickInit(void);
-static int WIIU_JoystickGetCount(void);
-static void WIIU_JoystickDetect(void);
-static const char *WIIU_JoystickGetDeviceName(int device_index);
-static int WIIU_JoystickGetDevicePlayerIndex(int device_index);
-static SDL_JoystickGUID WIIU_JoystickGetDeviceGUID(int device_index);
-static SDL_JoystickID WIIU_JoystickGetDeviceInstanceID(int device_index);
-static int WIIU_JoystickOpen(SDL_Joystick *joystick, int device_index);
-static int WIIU_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble, Uint32 duration_ms);
-static void WIIU_JoystickUpdate(SDL_Joystick *joystick);
-static void WIIU_JoystickClose(SDL_Joystick *joystick);
-static void WIIU_JoystickQuit(void);
-
 #define RETURN_WPAD_NAME(chan, ext) { \
     switch (ext) { \
     case WPAD_EXT_CORE: \
