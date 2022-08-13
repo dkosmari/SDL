@@ -40,6 +40,10 @@
 #include <android/log.h>
 #endif
 
+#if defined(__WIIU__)
+#include <coreinit/debug.h>
+#endif
+
 #include "stdlib/SDL_vacopy.h"
 
 /* The size of the stack buffer to use for rendering log messages. */
@@ -554,6 +558,10 @@ static void SDLCALL SDL_LogOutput(void *userdata, int category, SDL_LogPriority 
     {
         SDL_NSLog(SDL_priority_prefixes[priority], message);
         return;
+    }
+#elif defined(__WIIU__)
+    {
+        OSReport("SDL: %s: %s\n", SDL_priority_prefixes[priority], message);
     }
 #elif defined(__PSP__) || defined(__PS2__)
     {

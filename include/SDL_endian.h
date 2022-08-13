@@ -88,7 +88,7 @@ _m_prefetch(void *__P)
     defined(__m68k__) || defined(mc68000) || defined(_M_M68K) || \
     (defined(__MIPS__) && defined(__MIPSEB__)) || \
     defined(__ppc__) || defined(__POWERPC__) || defined(__powerpc__) || defined(__PPC__) || \
-    defined(__sparc__) || defined(__sparc)
+    defined(__sparc__) || defined(__sparc) || defined(_BIG_ENDIAN) || (__BIG_ENDIAN__ == 1)
 #define SDL_BYTEORDER   SDL_BIG_ENDIAN
 #else
 #define SDL_BYTEORDER   SDL_LIL_ENDIAN

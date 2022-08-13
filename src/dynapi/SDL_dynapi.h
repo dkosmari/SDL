@@ -59,6 +59,8 @@
 #define SDL_DYNAMIC_API 0
 #elif defined(__riscos__) && __riscos__ /* probably not useful on RISC OS, since dlopen() can't be used when using static linking. */
 #define SDL_DYNAMIC_API 0
+#elif defined(__WIIU__) && __WIIU__
+#define SDL_DYNAMIC_API 0
 #elif defined(__clang_analyzer__) || defined(SDL_THREAD_SAFETY_ANALYSIS)
 #define SDL_DYNAMIC_API 0 /* Turn off for static analysis, so reports are more clear. */
 #elif defined(__VITA__)
