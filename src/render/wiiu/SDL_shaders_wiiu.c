@@ -38,7 +38,7 @@ void WIIU_SDL_CreateShaders(void)
 
         WHBGfxLoadGFDShaderGroup(colorShader, 0, colorShader_gsh);
         WHBGfxInitShaderAttribute(colorShader, "a_position", 0, 0, GX2_ATTRIB_FORMAT_FLOAT_32_32);
-        WHBGfxInitShaderAttribute(colorShader, "a_color", 0, 8, GX2_ATTRIB_FORMAT_FLOAT_32_32_32_32);
+        WHBGfxInitShaderAttribute(colorShader, "a_color", 0, 8, GX2_ATTRIB_FORMAT_UNORM_8_8_8_8);
         WHBGfxInitFetchShader(colorShader);
 
         WHBGfxLoadGFDShaderGroup(textureShader, 0, textureShader_gsh);

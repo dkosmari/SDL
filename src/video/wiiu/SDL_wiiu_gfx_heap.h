@@ -1,7 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 2018-2018 Ash Logan <ash@heyquark.com>
-  Copyright (C) 2018-2018 Roberto Van Eeden <r.r.qwertyuiop.r.r@gmail.com>
+  Copyright (c) 2015-present devkitPro, wut Authors
   Copyright (C) 2022 GaryOderNichts <garyodernichts@gmail.com>
 
   This software is provided 'as-is', without any express or implied
@@ -20,38 +19,35 @@
      misrepresented as being the original software.
   3. This notice may not be removed or altered from any source distribution.
 */
-
 #include "../../SDL_internal.h"
 
-#ifndef SDL_wiiuvideo_h
-#define SDL_wiiuvideo_h
+#ifndef SDL_wiiu_gfx_heap_h
+#define SDL_wiiu_gfx_heap_h
 
 #if SDL_VIDEO_DRIVER_WIIU
 
-#include <gx2/surface.h>
+#include <gx2r/mem.h>
 
-typedef struct WIIU_VideoData WIIU_VideoData;
+int WIIU_GfxHeap_MEM1Init(void);
 
-struct WIIU_VideoData
-{
-	// indicate if we're handling procui in SDL's events
-	SDL_bool handleProcUI;
+int WIIU_GfxHeap_MEM1Destroy(void);
 
-	SDL_bool hasForeground;
+int WIIU_GfxHeap_ForegroundInit(void);
 
-	void *commandBufferPool;
+int WIIU_GfxHeap_ForegroundDestroy(void);
 
-	GX2TVRenderMode tvRenderMode;
-	uint32_t tvWidth;
-	uint32_t tvHeight;
-	void *tvScanBuffer;
-	uint32_t tvScanBufferSize;
+void *WIIU_GfxHeap_MEM1Alloc(uint32_t align, uint32_t size);
 
-	GX2DrcRenderMode drcRenderMode;
-	void *drcScanBuffer;
-	uint32_t drcScanBufferSize;
-};
+void WIIU_GfxHeap_MEM1Free(void *block);
+
+void *WIIU_GfxHeap_ForegroundAlloc(uint32_t align, uint32_t size);
+
+void WIIU_GfxHeap_ForegroundFree(void *block);
+
+void *WIIU_GfxHeap_GX2RAlloc(GX2RResourceFlags flags, uint32_t size, uint32_t alignment);
+
+void WIIU_GfxHeap_GX2RFree(GX2RResourceFlags flags, void *block);
 
 #endif /* SDL_VIDEO_DRIVER_WIIU */
 
-#endif /* SDL_wiiuvideo_h */
+#endif /* SDL_wiiu_gfx_heap_h */

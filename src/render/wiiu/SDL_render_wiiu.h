@@ -31,6 +31,9 @@
 #include "SDL_pixels.h"
 #include "SDL_shaders_wiiu.h"
 
+#include "../../video/SDL_sysvideo.h"
+#include "../../video/wiiu/SDL_wiiuvideo.h"
+
 #include <gx2r/buffer.h>
 #include <gx2/context.h>
 #include <gx2/sampler.h>
@@ -99,7 +102,7 @@ struct WIIU_TextureData
     GX2Sampler sampler;
     GX2Texture texture;
     GX2ColorBuffer cbuf;
-    int isRendering;
+    SDL_bool isRendering;
 };
 
 /* Ask texture driver to allocate texture's memory from MEM1 */
@@ -136,6 +139,7 @@ void WIIU_SDL_DestroyRenderer(SDL_Renderer * renderer);
 
 /* Driver internal functions */
 void WIIU_SDL_CreateWindowTex(SDL_Renderer * renderer, SDL_Window * window);
+void WIIU_SDL_DestroyWindowTex(SDL_Renderer * renderer, SDL_Window * window);
 
 /* Utility/helper functions */
 static inline GX2RBuffer * WIIU_AllocRenderData(WIIU_RenderData *r, GX2RBuffer buffer)
@@ -166,7 +170,7 @@ static inline void WIIU_FreeRenderData(WIIU_RenderData *r)
 static inline void WIIU_TextureStartRendering(WIIU_RenderData *r, WIIU_TextureData *t)
 {
     WIIU_TextureDrawData *d = SDL_malloc(sizeof(WIIU_TextureDrawData));
-    t->isRendering = 1;
+    t->isRendering = SDL_TRUE;
     d->texdata = t;
     d->next = r->listdraw;
     r->listdraw = d;
@@ -177,7 +181,7 @@ static inline void WIIU_TextureDoneRendering(WIIU_RenderData *r)
     while (r->listdraw) {
         WIIU_TextureDrawData *d = r->listdraw;
         r->listdraw = r->listdraw->next;
-        d->texdata->isRendering = 0;
+        d->texdata->isRendering = SDL_FALSE;
         SDL_free(d);
     }
 }

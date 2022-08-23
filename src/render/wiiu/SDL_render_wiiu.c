@@ -167,6 +167,13 @@ void WIIU_SDL_CreateWindowTex(SDL_Renderer * renderer, SDL_Window * window)
     WIIU_SDL_CreateTexture(renderer, &data->windowTex);
 }
 
+void WIIU_SDL_DestroyWindowTex(SDL_Renderer * renderer, SDL_Window * window)
+{
+    WIIU_RenderData *data = (WIIU_RenderData *) renderer->driverdata;
+
+    WIIU_SDL_DestroyTexture(renderer, &data->windowTex);
+}
+
 int WIIU_SDL_SetRenderTarget(SDL_Renderer * renderer, SDL_Texture * texture)
 {
     WIIU_RenderData *data = (WIIU_RenderData *) renderer->driverdata;
@@ -174,6 +181,9 @@ int WIIU_SDL_SetRenderTarget(SDL_Renderer * renderer, SDL_Texture * texture)
     /* Set window or texture as target */
     WIIU_TextureData *tdata = (WIIU_TextureData *)((texture) ? texture->driverdata
                                                              : data->windowTex.driverdata);
+
+    /* make sure we're using the correct renderer ctx */
+    GX2SetContextState(data->ctx);
 
     /* Wait for the texture rendering to finish */
     WIIU_TextureCheckWaitRendering(data, tdata);
@@ -189,11 +199,14 @@ int WIIU_SDL_SetRenderTarget(SDL_Renderer * renderer, SDL_Texture * texture)
 void WIIU_SDL_DestroyRenderer(SDL_Renderer * renderer)
 {
     WIIU_RenderData *data = (WIIU_RenderData *) renderer->driverdata;
+    WIIU_VideoData *videodata = (WIIU_VideoData *) SDL_GetVideoDevice()->driverdata;
 
-    GX2DrawDone();
+    if (videodata->hasForeground) {
+        GX2DrawDone();
 
-    WIIU_FreeRenderData(data);
-    WIIU_TextureDoneRendering(data);
+        WIIU_FreeRenderData(data);
+        WIIU_TextureDoneRendering(data);
+    }
 
     free(data->ctx);
 

@@ -198,6 +198,13 @@ void WIIU_SDL_DestroyTexture(SDL_Renderer * renderer, SDL_Texture * texture)
     /* Wait for the texture rendering to finish */
     WIIU_TextureCheckWaitRendering(data, tdata);
 
+    if (data->drawState.texture == texture) {
+        data->drawState.texture = NULL;
+    }
+    if (data->drawState.target == texture) {
+        data->drawState.target = NULL;
+    }
+
     GX2RDestroySurfaceEx(&tdata->cbuf.surface, 0);
     GX2RDestroySurfaceEx(&tdata->texture.surface, 0);
 

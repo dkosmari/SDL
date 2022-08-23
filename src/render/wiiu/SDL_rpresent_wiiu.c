@@ -31,60 +31,63 @@
 #include <gx2/registers.h>
 #include <gx2/state.h>
 #include <gx2/draw.h>
+#include <gx2/swap.h>
+#include <gx2/display.h>
 #include <gx2r/buffer.h>
 #include <gx2r/draw.h>
-
-#define SCREEN_WIDTH    1280
-#define SCREEN_HEIGHT   720
 
 void WIIU_SDL_RenderPresent(SDL_Renderer * renderer)
 {
     WIIU_RenderData *data = (WIIU_RenderData *) renderer->driverdata;
     WIIU_TextureData *tdata = (WIIU_TextureData *) data->windowTex.driverdata;
     Uint32 flags = SDL_GetWindowFlags(renderer->window);
-    int win_x, win_y, win_w, win_h;
-
-    if (renderer->info.flags & SDL_RENDERER_PRESENTVSYNC) {
-    /*  NOTE watch libwhb's source to ensure this call only does vsync */
-        WHBGfxBeginRender();
-    }
-
-    /* Calculate and save positions TODO: make use of the window position */
-    if (flags & SDL_WINDOW_FULLSCREEN) {
-        win_x = 0;
-        win_y = 0;
-        win_w = SCREEN_WIDTH;
-        win_h = SCREEN_HEIGHT;
-    } else {
-        /* Center */
-        SDL_GetWindowSize(renderer->window, &win_w, &win_h);
-        win_x = (SCREEN_WIDTH - win_w) / 2;
-        win_y = (SCREEN_HEIGHT - win_h) / 2;
-    }
 
     /* Only render to TV if the window is *not* drc-only */
     if (!(flags & SDL_WINDOW_WIIU_GAMEPAD_ONLY)) {
-        WHBGfxBeginRenderTV();
-        GX2CopySurface(&tdata->texture.surface, 0, 0, &WHBGfxGetTVColourBuffer()->surface, 0, 0);
-        GX2SetContextState(data->ctx);
-        WHBGfxFinishRenderTV();
+        GX2CopyColorBufferToScanBuffer(&tdata->cbuf, GX2_SCAN_TARGET_TV);
     }
 
     if (!(flags & SDL_WINDOW_WIIU_TV_ONLY)) {
-        WHBGfxBeginRenderDRC();
-        GX2CopySurface(&tdata->texture.surface, 0, 0, &WHBGfxGetDRCColourBuffer()->surface, 0, 0);
-        GX2SetContextState(data->ctx);
-        WHBGfxFinishRenderDRC();
+        GX2CopyColorBufferToScanBuffer(&tdata->cbuf, GX2_SCAN_TARGET_DRC);
     }
 
-    WHBGfxFinishRender();
+    /* Swap buffers */
+    GX2SwapScanBuffers();
+    GX2Flush();
+
+    /* Restore SDL context state */
+    GX2SetContextState(data->ctx);
+
+    /* TV and DRC can now be enabled after the first frame was drawn */
+    GX2SetTVEnable(TRUE);
+    GX2SetDRCEnable(TRUE);
+
+    /* Wait for vsync */
+    if (renderer->info.flags & SDL_RENDERER_PRESENTVSYNC) {
+        uint32_t swap_count, flip_count;
+        OSTime last_flip, last_vsync;
+        uint32_t wait_count = 0;
+
+        while (true) {
+            GX2GetSwapStatus(&swap_count, &flip_count, &last_flip, &last_vsync);
+
+            if (flip_count >= swap_count) {
+                break;
+            }
+
+            if (wait_count >= 10) {
+                /* GPU timed out */
+                break;
+            }
+
+            wait_count++;
+            GX2WaitForVsync();
+        }
+    }
 
     /* Free the list of render and draw data */
     WIIU_FreeRenderData(data);
     WIIU_TextureDoneRendering(data);
-
-    /* Restore SDL context state */
-    GX2SetContextState(data->ctx);
 }
 
 #endif /* SDL_VIDEO_RENDER_WIIU */

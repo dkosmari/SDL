@@ -2,7 +2,7 @@
 
 ; $SPI_VS_OUT_CONFIG.VS_EXPORT_COUNT = 0
 ; $NUM_SPI_VS_OUT_ID = 1
-; vColor
+; v_color
 ; $SPI_VS_OUT_ID[0].SEMANTIC_0 = 0
 
 ; C0

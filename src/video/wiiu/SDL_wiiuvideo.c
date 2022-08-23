@@ -2,6 +2,7 @@
   Simple DirectMedia Layer
   Copyright (C) 2018-2018 Ash Logan <ash@heyquark.com>
   Copyright (C) 2018-2018 rw-r-r-0644 <r.r.qwertyuiop.r.r@gmail.com>
+  Copyright (C) 2022 GaryOderNichts <garyodernichts@gmail.com>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -20,13 +21,6 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-/* This is basically just a stub at this point - all the magic happens in
- * SDL_Render, and the textureframebuffer stuff in SDL_video.c.
- * Potentially more could/should be done here, video modes and things.
- * Some design work will need to go into the responsibilities of render
- * vs video.
- */
-
 #include "../../SDL_internal.h"
 
 #if SDL_VIDEO_DRIVER_WIIU
@@ -37,81 +31,275 @@
 #include "SDL_syswm.h"
 #include "SDL_loadso.h"
 #include "SDL_events.h"
+#include "SDL_render.h"
 #include "../../events/SDL_mouse_c.h"
 #include "../../events/SDL_keyboard_c.h"
+#include "../../events/SDL_events_c.h"
 #include "SDL_wiiuvideo.h"
+#include "SDL_wiiu_gfx_heap.h"
+
+#include "../../render/wiiu/SDL_render_wiiu.h"
 
 #include <whb/proc.h>
-#include <whb/gfx.h>
+#include <stdio.h>
+#include <malloc.h>
 #include <string.h>
 #include <stdint.h>
 
 #include <proc_ui/procui.h>
 
-static int WIIU_VideoInit(_THIS);
-static int WIIU_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *mode);
-static void WIIU_VideoQuit(_THIS);
-static void WIIU_PumpEvents(_THIS);
+#include <gx2/context.h>
+#include <gx2/display.h>
+#include <gx2/event.h>
+#include <gx2/mem.h>
+#include <gx2/state.h>
+#include <gx2r/mem.h>
+#include <gx2r/surface.h>
 
-static int using_whb_proc = 0;
+#define DRC_SCREEN_WIDTH    854
+#define DRC_SCREEN_HEIGHT   480
 
-#define SCREEN_WIDTH    1280
-#define SCREEN_HEIGHT   720
+static int WIIU_ForegroundAcquired(_THIS)
+{
+	WIIU_VideoData *videodata = (WIIU_VideoData *) _this->driverdata;
+	SDL_Window* window = _this->windows;
+
+	videodata->hasForeground = SDL_TRUE;
+
+	// initialize gfx heaps once in forground
+	if (WIIU_GfxHeap_ForegroundInit() != 0) {
+		return -1;
+	}
+
+	if (WIIU_GfxHeap_MEM1Init() != 0) {
+		return -1;
+	}
+
+	// allocate and set scanbuffers
+	videodata->tvScanBuffer = WIIU_GfxHeap_ForegroundAlloc(GX2_SCAN_BUFFER_ALIGNMENT, videodata->tvScanBufferSize);
+	if (!videodata->tvScanBuffer) {
+		return -1;
+	}
+
+	GX2Invalidate(GX2_INVALIDATE_MODE_CPU, videodata->tvScanBuffer, videodata->tvScanBufferSize);
+	GX2SetTVBuffer(videodata->tvScanBuffer, videodata->tvScanBufferSize, videodata->tvRenderMode, GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8, GX2_BUFFERING_MODE_DOUBLE);
+
+	videodata->drcScanBuffer = WIIU_GfxHeap_ForegroundAlloc(GX2_SCAN_BUFFER_ALIGNMENT, videodata->drcScanBufferSize);
+	if (!videodata->drcScanBuffer) {
+		return -1;
+	}
+
+	GX2Invalidate(GX2_INVALIDATE_MODE_CPU, videodata->drcScanBuffer, videodata->drcScanBufferSize);
+	GX2SetDRCBuffer(videodata->drcScanBuffer, videodata->drcScanBufferSize, videodata->drcRenderMode, GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8, GX2_BUFFERING_MODE_DOUBLE);
+
+	// TODO recreate MEM1 surfaces for all windows
+	while (window) {
+		SDL_Renderer* renderer = SDL_GetRenderer(window);
+		//WIIU_SDL_CreateWindowTex(renderer, window);
+
+		window = window->next;
+	}
+
+	return 0;
+}
+
+static int WIIU_ForegroundReleased(_THIS)
+{
+	WIIU_VideoData *videodata = (WIIU_VideoData *) _this->driverdata;
+	SDL_Window* window = _this->windows;
+
+	// make sure the GPU is done drawing
+	GX2DrawDone();
+
+	if (videodata->tvScanBuffer) {
+		WIIU_GfxHeap_ForegroundFree(videodata->tvScanBuffer);
+		videodata->tvScanBuffer = NULL;
+	}
+
+	if (videodata->drcScanBuffer) {
+		WIIU_GfxHeap_ForegroundFree(videodata->drcScanBuffer);
+		videodata->drcScanBuffer = NULL;
+	}
+
+	// TODO destroy MEM1 surfaces for all windows
+	while (window) {
+		SDL_Renderer* renderer = SDL_GetRenderer(window);
+		//WIIU_SDL_DestroyWindowTex(renderer, window);
+
+		window = window->next;
+	}
+
+	WIIU_GfxHeap_MEM1Destroy();
+	WIIU_GfxHeap_ForegroundDestroy();
+	videodata->hasForeground = SDL_FALSE;
+
+	return 0;
+}
 
 static int WIIU_VideoInit(_THIS)
 {
+	WIIU_VideoData *videodata = (WIIU_VideoData *) _this->driverdata;
+	uint32_t unk;
 	SDL_DisplayMode mode;
+	uint32_t* initAttribs;
 
+	// check if the user already set up procui or if we should handle it
 	if (!ProcUIIsRunning()) {
 		WHBProcInit();
-		using_whb_proc = 1;
+		
+		videodata->handleProcUI = SDL_TRUE;
 	}
-	WHBGfxInit();
 
-	// add default mode (1280x720)
-	mode.format = SDL_PIXELFORMAT_RGBA8888;
-	mode.w = SCREEN_WIDTH;
-	mode.h = SCREEN_HEIGHT;
-	mode.refresh_rate = 60;
-	mode.driverdata = NULL;
-	if (SDL_AddBasicVideoDisplay(&mode) < 0) {
-		return -1;
+	// allocate command buffer pool
+	videodata->commandBufferPool = memalign(GX2_COMMAND_BUFFER_ALIGNMENT, GX2_COMMAND_BUFFER_SIZE);
+	if (!videodata->commandBufferPool) {
+		return SDL_OutOfMemory();
 	}
-	SDL_AddDisplayMode(&_this->displays[0], &mode);
+
+	// initialize GX2
+	initAttribs = (uint32_t[]) {
+		GX2_INIT_CMD_BUF_BASE, (uintptr_t) videodata->commandBufferPool,
+		GX2_INIT_CMD_BUF_POOL_SIZE, GX2_COMMAND_BUFFER_SIZE,
+		GX2_INIT_ARGC, 0,
+		GX2_INIT_ARGV, 0,
+		GX2_INIT_END
+	};
+	GX2Init(initAttribs);
+
+	// figure out the TV render mode and size
+	switch(GX2GetSystemTVScanMode()) {
+	case GX2_TV_SCAN_MODE_480I:
+	case GX2_TV_SCAN_MODE_480P:
+		videodata->tvRenderMode = GX2_TV_RENDER_MODE_WIDE_480P;
+		videodata->tvWidth = 854;
+		videodata->tvHeight = 480;
+		break;
+	case GX2_TV_SCAN_MODE_1080I:
+	case GX2_TV_SCAN_MODE_1080P:
+		videodata->tvRenderMode = GX2_TV_RENDER_MODE_WIDE_1080P;
+		videodata->tvWidth = 1920;
+		videodata->tvHeight = 1080;
+		break;
+	case GX2_TV_SCAN_MODE_720P:
+	default:
+		videodata->tvRenderMode = GX2_TV_RENDER_MODE_WIDE_720P;
+		videodata->tvWidth = 1280;
+		videodata->tvHeight = 720;
+		break;
+	}
+
+	videodata->drcRenderMode = GX2GetSystemDRCScanMode();
+
+	// calculate the scanbuffer sizes
+	GX2CalcTVSize(videodata->tvRenderMode, GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8, GX2_BUFFERING_MODE_DOUBLE, &videodata->tvScanBufferSize, &unk);
+	GX2CalcDRCSize(videodata->drcRenderMode, GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8, GX2_BUFFERING_MODE_DOUBLE, &videodata->drcScanBufferSize, &unk);
+
+	// set GX2R allocator for the gfx heap
+	GX2RSetAllocator(&WIIU_GfxHeap_GX2RAlloc, &WIIU_GfxHeap_GX2RFree);
+
+	// register callbacks for acquiring and releasing foreground
+	ProcUIRegisterCallback(PROCUI_CALLBACK_ACQUIRE, (ProcUICallback) WIIU_ForegroundAcquired, _this, 100);
+	ProcUIRegisterCallback(PROCUI_CALLBACK_RELEASE, (ProcUICallback) WIIU_ForegroundReleased, _this, 100);
+
+	// if this is running, the application is already in foreground so call the callback
+	if (WIIU_ForegroundAcquired(_this) != 0) {
+		free(videodata->commandBufferPool);
+		videodata->commandBufferPool = NULL;
+		return SDL_OutOfMemory();
+	}
+
+    GX2SetTVScale(videodata->tvWidth, videodata->tvHeight);
+    GX2SetDRCScale(DRC_SCREEN_WIDTH, DRC_SCREEN_HEIGHT);
+
+	// add tv display
+	SDL_zero(mode);
+	mode.format = SDL_PIXELFORMAT_RGBA8888;
+	mode.w = videodata->tvWidth;
+	mode.h = videodata->tvHeight;
+	mode.refresh_rate = 60;
+	SDL_AddBasicVideoDisplay(&mode);
+
+	// add drc display
+	SDL_zero(mode);
+	mode.format = SDL_PIXELFORMAT_RGBA8888;
+	mode.w = DRC_SCREEN_WIDTH;
+	mode.h = DRC_SCREEN_HEIGHT;
+	mode.refresh_rate = 60;
+	SDL_AddBasicVideoDisplay(&mode);
 
 	return 0;
 }
 
 static void WIIU_VideoQuit(_THIS)
 {
-	WHBGfxShutdown();
-	if (using_whb_proc) WHBProcShutdown();
+	WIIU_VideoData *videodata = (WIIU_VideoData *) _this->driverdata;
+
+	// if we're in foreground, destroy foreground data
+	if (videodata->hasForeground) {
+		WIIU_ForegroundReleased(_this);
+	}
+
+	// shutdown GX2 and free command buffer
+	GX2Shutdown();
+
+	if (videodata->commandBufferPool) {
+		free(videodata->commandBufferPool);
+		videodata->commandBufferPool = NULL;
+	}
+
+	if (videodata->handleProcUI) {
+		WHBProcShutdown();
+	}
 }
 
-static int WIIU_CreateSDLWindow(_THIS, SDL_Window *window)
+static int WIIU_CreateSDLWindow(_THIS, SDL_Window * window)
 {
-    SDL_SetMouseFocus(window);
-    SDL_SetKeyboardFocus(window);
+	// focus the window
+	SDL_SetMouseFocus(window);
+	SDL_SetKeyboardFocus(window);
 	return 0;
 }
 
-static int WIIU_SetDisplayMode(_THIS, SDL_VideoDisplay *display, SDL_DisplayMode *mode)
+static void WIIU_SetWindowSize(_THIS, SDL_Window * window)
+{
+}
+
+static void WIIU_DestroyWindow(_THIS, SDL_Window * window)
+{
+}
+
+static void WIIU_GetDisplayModes(_THIS, SDL_VideoDisplay * display)
+{
+	// we currently only have one mode per display, which is the current one
+	SDL_AddDisplayMode(display, &display->current_mode);
+}
+
+static int WIIU_SetDisplayMode(_THIS, SDL_VideoDisplay * display, SDL_DisplayMode * mode)
 {
 	return 0;
 }
 
 static void WIIU_PumpEvents(_THIS)
 {
+	WIIU_VideoData *videodata = (WIIU_VideoData *) _this->driverdata;
+
+	if (videodata->handleProcUI) {
+		if (!WHBProcIsRunning()) {
+			SDL_SendQuit();
+		}
+	}
 }
 
 static void WIIU_DeleteDevice(SDL_VideoDevice *device)
 {
+	SDL_free(device->driverdata);
 	SDL_free(device);
 }
 
 static SDL_VideoDevice *WIIU_CreateDevice(int devindex)
 {
 	SDL_VideoDevice *device;
+	WIIU_VideoData *videodata;
 
 	device = (SDL_VideoDevice*) SDL_calloc(1, sizeof(SDL_VideoDevice));
 	if(!device) {
@@ -119,11 +307,22 @@ static SDL_VideoDevice *WIIU_CreateDevice(int devindex)
 		return NULL;
 	}
 
+	videodata = (WIIU_VideoData*) SDL_calloc(1, sizeof(WIIU_VideoData));
+	if(!videodata) {
+		SDL_OutOfMemory();
+		return NULL;
+	}
+
+	device->driverdata = videodata;
+
 	device->VideoInit = WIIU_VideoInit;
 	device->VideoQuit = WIIU_VideoQuit;
+	device->CreateSDLWindow = WIIU_CreateSDLWindow;
+	device->SetWindowSize = WIIU_SetWindowSize;
+	device->DestroyWindow = WIIU_DestroyWindow;
+	device->GetDisplayModes = WIIU_GetDisplayModes;
 	device->SetDisplayMode = WIIU_SetDisplayMode;
 	device->PumpEvents = WIIU_PumpEvents;
-	device->CreateSDLWindow = WIIU_CreateSDLWindow;
 
 	device->free = WIIU_DeleteDevice;
 

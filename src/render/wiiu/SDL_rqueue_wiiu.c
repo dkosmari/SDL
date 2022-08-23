@@ -351,12 +351,16 @@ int WIIU_SDL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, vo
 {
     WIIU_RenderData* data = (WIIU_RenderData*) renderer->driverdata;
 
+    /* make sure we're using the correct renderer ctx */
+    WIIU_SDL_SetRenderTarget(renderer, renderer->target);
+
     data->drawState.target = renderer->target;
     if (!data->drawState.target) {
         int w, h;
         SDL_GL_GetDrawableSize(renderer->window, &w, &h);
         if ((w != data->drawState.drawableWidth) || (h != data->drawState.drawableHeight)) {
-            data->drawState.viewportDirty = SDL_TRUE;  // if the window dimensions changed, invalidate the current viewport, etc.
+            /* if the window dimensions changed, invalidate the current viewport, etc. */
+            data->drawState.viewportDirty = SDL_TRUE;
             data->drawState.cliprectDirty = SDL_TRUE;
             data->drawState.drawableWidth = w;
             data->drawState.drawableHeight = h;
