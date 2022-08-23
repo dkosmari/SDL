@@ -274,7 +274,8 @@ static int WIIU_SDL_SetDrawState(WIIU_RenderData * data, const SDL_RenderCommand
 
         if (viewport->w && viewport->h) {
             data->drawState.projectionMatrix[0][0] = 2.0f / viewport->w;
-            data->drawState.projectionMatrix[1][1] = 2.0f / viewport->h;
+            data->drawState.projectionMatrix[1][1] = (data->drawState.target ? 2.0f : -2.0f) / viewport->h;
+            data->drawState.projectionMatrix[3][1] = data->drawState.target ? -1.0f : 1.0f;
             matrixUpdated = SDL_TRUE;
         }
 
