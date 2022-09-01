@@ -264,11 +264,57 @@ static void WIIU_JoystickSetDevicePlayerIndex(int device_index, int player_index
 /* Function to return the stable GUID for a plugged in device */
 static SDL_JoystickGUID WIIU_JoystickGetDeviceGUID(int device_index)
 {
+	/* These are random GUIDs that were generated with http://guid.one/ . */
 	SDL_JoystickGUID guid;
-	/* the GUID is just the first 16 chars of the name for now */
-	const char *name = WIIU_JoystickGetDeviceName(device_index);
-	SDL_zero(guid);
-	SDL_memcpy(&guid, name, SDL_min(sizeof(guid), SDL_strlen(name)));
+
+	const int wiiu_device = WIIU_GetDeviceForIndex(device_index);
+
+	switch (wiiu_device)
+	{
+		case WIIU_DEVICE_GAMEPAD:
+			guid = (SDL_JoystickGUID){{0x49, 0xdc, 0xab, 0x4b, 0x72, 0xe9, 0x42, 0xa1, 0xad, 0x93, 0x8e, 0x4a, 0xeb, 0x88, 0xd8, 0x68}};
+			break;
+
+		case WIIU_DEVICE_WPAD(0):
+		case WIIU_DEVICE_WPAD(1):
+		case WIIU_DEVICE_WPAD(2):
+		case WIIU_DEVICE_WPAD(3):
+			switch (lastKnownExts[WIIU_WPAD_CHAN(wiiu_device)])
+			{
+				case WPAD_EXT_CORE:
+				case WPAD_EXT_MPLUS:
+				default:
+					/* Wii Remote */
+					guid = (SDL_JoystickGUID){{0x88, 0xaa, 0x88, 0xb5, 0x4e, 0x27, 0x42, 0xd2, 0xb4, 0xbb, 0xe0, 0x42, 0x84, 0xa5, 0xa7, 0xa1}};
+					break;
+
+				case WPAD_EXT_NUNCHUK:
+				case WPAD_EXT_MPLUS_NUNCHUK:
+					/* Wii Remote + Nunchuk */
+					guid = (SDL_JoystickGUID){{0xcb, 0x9d, 0x4b, 0xbb, 0x69, 0x36, 0x49, 0x4d, 0x89, 0x17, 0x19, 0xaf, 0x55, 0xb2, 0x7e, 0x4d}};
+					break;
+
+				case WPAD_EXT_CLASSIC:
+				case WPAD_EXT_MPLUS_CLASSIC:
+					/* Wii Classic Controller */
+					guid = (SDL_JoystickGUID){{0xfc, 0x54, 0x73, 0x96, 0x88, 0x6d, 0x4f, 0x55, 0xad, 0xd9, 0x13, 0x76, 0x7f, 0x0f, 0x51, 0x1c}};
+					break;
+
+				case WPAD_EXT_PRO_CONTROLLER:
+					/* Wii U Pro Controller */
+					guid = (SDL_JoystickGUID){{0x69, 0x72, 0xc1, 0x58, 0x6f, 0x70, 0x4c, 0x4e, 0x9d, 0x80, 0xcc, 0x89, 0x57, 0xab, 0xb8, 0x14}};
+					break;
+			}
+
+			break;
+
+		default:
+			/* Unknown */
+			/* The iPhone backend for SDL2 does this if it can't get a GUID. */
+			SDL_zero(guid);
+			break;
+	}
+
 	return guid;
 }
 
@@ -319,7 +365,7 @@ static int WIIU_JoystickOpen(SDL_Joystick *joystick, int device_index)
 				}
 				case WPAD_EXT_NUNCHUK:
 				case WPAD_EXT_MPLUS_NUNCHUK: {
-					joystick->nbuttons = SIZEOF_ARR(wiimote_button_map);
+					joystick->nbuttons = SIZEOF_ARR(nunchuk_button_map);
 					joystick->naxes = 2;
 					joystick->nhats = 0;
 					break;
@@ -504,10 +550,10 @@ static void WIIU_JoystickUpdate(SDL_Joystick *joystick)
 		case WPAD_EXT_NUNCHUK:
 		case WPAD_EXT_MPLUS_NUNCHUK: {
 			for(int i = 0; i < joystick->nbuttons; i++)
-				if (kpad.trigger & wiimote_button_map[i])
+				if ((kpad.trigger | (kpad.nunchuck.trigger << 16)) & nunchuk_button_map[i])
 					SDL_PrivateJoystickButton(joystick, (Uint8)i, SDL_PRESSED);
 			for(int i = 0; i < joystick->nbuttons; i++)
-				if (kpad.release & wiimote_button_map[i])
+				if ((kpad.release | (kpad.nunchuck.release << 16)) & nunchuk_button_map[i])
 					SDL_PrivateJoystickButton(joystick, (Uint8)i, SDL_RELEASED);
 
 			x1 = (int16_t) ((kpad.nunchuck.stick.x) * 0x7ff0);
