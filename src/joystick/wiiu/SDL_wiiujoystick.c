@@ -248,10 +248,10 @@ static int WIIU_JoystickGetDevicePlayerIndex(int device_index)
 	int wiiu_device = WIIU_GetDeviceForIndex(device_index);
 	switch (wiiu_device) {
 		case WIIU_DEVICE_GAMEPAD: { return 0; }
-		case WIIU_DEVICE_WPAD(1): { return 1; }
-		case WIIU_DEVICE_WPAD(2): { return 2; }
-		case WIIU_DEVICE_WPAD(3): { return 3; }
-		case WIIU_DEVICE_WPAD(4): { return 4; }
+		case WIIU_DEVICE_WPAD(0): { return 1; }
+		case WIIU_DEVICE_WPAD(1): { return 2; }
+		case WIIU_DEVICE_WPAD(2): { return 3; }
+		case WIIU_DEVICE_WPAD(3): { return 4; }
 		default: { return -1; }
 	}
 
