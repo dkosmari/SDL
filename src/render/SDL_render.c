@@ -38,8 +38,10 @@ that will crash the app. However, these apps _should_ have used
 SDL_AddEventWatch to catch SDL_APP_WILLENTERBACKGROUND events and stopped
 drawing themselves. Other platforms still draw, as the compositor can use it,
 and more importantly: drawing to render targets isn't lost. But I still think
-this should probably be removed at some point in the future.  --ryan. */
-#if defined(__IPHONEOS__) || defined(__TVOS__) || defined(__ANDROID__)
+this should probably be removed at some point in the future.  --ryan.*/
+/* Same goes for Wii U. If you draw things while not in foreground the app
+will just crash. --gary*/
+#if defined(__IPHONEOS__) || defined(__TVOS__) || defined(__ANDROID__) || defined(__WIIU__)
 #define DONT_DRAW_WHILE_HIDDEN 1
 #else
 #define DONT_DRAW_WHILE_HIDDEN 0

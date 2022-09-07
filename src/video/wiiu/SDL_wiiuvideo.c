@@ -92,10 +92,17 @@ static int WIIU_ForegroundAcquired(_THIS)
 	GX2Invalidate(GX2_INVALIDATE_MODE_CPU, videodata->drcScanBuffer, videodata->drcScanBufferSize);
 	GX2SetDRCBuffer(videodata->drcScanBuffer, videodata->drcScanBufferSize, videodata->drcRenderMode, GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8, GX2_BUFFERING_MODE_DOUBLE);
 
-	// TODO recreate MEM1 surfaces for all windows
 	while (window) {
 		SDL_Renderer* renderer = SDL_GetRenderer(window);
-		//WIIU_SDL_CreateWindowTex(renderer, window);
+
+		// Recreate the window texture, now that we have foreground memory available
+		if (renderer) {
+			// TODO
+			//WIIU_SDL_CreateWindowTex(renderer, window);
+		}
+
+		// We're now in foreground, window is visible
+		SDL_SendWindowEvent(window, SDL_WINDOWEVENT_SHOWN, 0, 0);
 
 		window = window->next;
 	}
@@ -121,10 +128,17 @@ static int WIIU_ForegroundReleased(_THIS)
 		videodata->drcScanBuffer = NULL;
 	}
 
-	// TODO destroy MEM1 surfaces for all windows
 	while (window) {
 		SDL_Renderer* renderer = SDL_GetRenderer(window);
-		//WIIU_SDL_DestroyWindowTex(renderer, window);
+
+		// No longer in foreground, window is no longer visible
+		SDL_SendWindowEvent(window, SDL_WINDOWEVENT_HIDDEN, 0, 0);
+
+		// Destroy window texture, we no longer have access to foreground memory
+		if (renderer) {
+			// TODO
+			//WIIU_SDL_DestroyWindowTex(renderer, window);
+		}
 
 		window = window->next;
 	}
@@ -314,6 +328,9 @@ static SDL_VideoDevice *WIIU_CreateDevice(int devindex)
 	}
 
 	device->driverdata = videodata;
+
+    // Setup amount of available displays
+    device->num_displays = 0;
 
 	device->VideoInit = WIIU_VideoInit;
 	device->VideoQuit = WIIU_VideoQuit;

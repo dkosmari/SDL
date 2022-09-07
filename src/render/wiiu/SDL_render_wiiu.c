@@ -203,10 +203,10 @@ void WIIU_SDL_DestroyRenderer(SDL_Renderer * renderer)
 
     if (videodata->hasForeground) {
         GX2DrawDone();
-
-        WIIU_FreeRenderData(data);
-        WIIU_TextureDoneRendering(data);
     }
+
+    WIIU_FreeRenderData(data);
+    WIIU_TextureDoneRendering(data);
 
     free(data->ctx);
 

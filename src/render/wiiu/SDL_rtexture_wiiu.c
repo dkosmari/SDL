@@ -122,13 +122,16 @@ int WIIU_SDL_CreateTexture(SDL_Renderer * renderer, SDL_Texture * texture)
 int WIIU_SDL_LockTexture(SDL_Renderer * renderer, SDL_Texture * texture,
                          const SDL_Rect * rect, void **pixels, int *pitch)
 {
+    WIIU_VideoData *videodata = (WIIU_VideoData *) SDL_GetVideoDevice()->driverdata;
     WIIU_RenderData *data = (WIIU_RenderData *) renderer->driverdata;
     WIIU_TextureData *tdata = (WIIU_TextureData *) texture->driverdata;
     Uint32 BytesPerPixel = SDL_BYTESPERPIXEL(texture->format);
     void* pixel_buffer;
 
-    /* Wait for the texture rendering to finish */
-    WIIU_TextureCheckWaitRendering(data, tdata);
+    if (videodata->hasForeground) {
+        /* Wait for the texture rendering to finish */
+        WIIU_TextureCheckWaitRendering(data, tdata);
+    }
 
     pixel_buffer = GX2RLockSurfaceEx(&tdata->texture.surface, 0, 0);
 
@@ -164,10 +167,15 @@ void WIIU_SDL_SetTextureScaleMode(SDL_Renderer * renderer, SDL_Texture * texture
 int WIIU_SDL_UpdateTexture(SDL_Renderer * renderer, SDL_Texture * texture,
                            const SDL_Rect * rect, const void *pixels, int pitch)
 {
+    WIIU_VideoData *videodata = (WIIU_VideoData *) SDL_GetVideoDevice()->driverdata;
     Uint32 BytesPerPixel = SDL_BYTESPERPIXEL(texture->format);
     size_t length = rect->w * BytesPerPixel;
     Uint8 *src = (Uint8 *) pixels, *dst;
     int row, dst_pitch;
+
+    if (!videodata->hasForeground) {
+        return 0;
+    }
 
     /* We write the rules, and we say all textures are streaming */
     WIIU_SDL_LockTexture(renderer, texture, rect, (void**)&dst, &dst_pitch);
@@ -185,6 +193,7 @@ int WIIU_SDL_UpdateTexture(SDL_Renderer * renderer, SDL_Texture * texture,
 
 void WIIU_SDL_DestroyTexture(SDL_Renderer * renderer, SDL_Texture * texture)
 {
+    WIIU_VideoData *videodata = (WIIU_VideoData *) SDL_GetVideoDevice()->driverdata;
     WIIU_RenderData *data;
     WIIU_TextureData *tdata;
 
@@ -196,7 +205,9 @@ void WIIU_SDL_DestroyTexture(SDL_Renderer * renderer, SDL_Texture * texture)
     tdata = (WIIU_TextureData *) texture->driverdata;
 
     /* Wait for the texture rendering to finish */
-    WIIU_TextureCheckWaitRendering(data, tdata);
+    if (videodata->hasForeground) {
+        WIIU_TextureCheckWaitRendering(data, tdata);
+    }
 
     if (data->drawState.texture == texture) {
         data->drawState.texture = NULL;

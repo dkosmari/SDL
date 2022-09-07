@@ -350,6 +350,13 @@ static int WIIU_SDL_SetDrawState(WIIU_RenderData * data, const SDL_RenderCommand
 int WIIU_SDL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertices, size_t vertsize)
 {
     WIIU_RenderData* data = (WIIU_RenderData*) renderer->driverdata;
+    WIIU_VideoData *videodata = (WIIU_VideoData *) SDL_GetVideoDevice()->driverdata;
+
+    /* The command queue is still ran, even with DONT_DRAW_WHILE_HIDDEN
+       So check manually for foreground here */
+    if (!videodata->hasForeground) {
+        return 0;
+    }
 
     /* make sure we're using the correct renderer ctx */
     WIIU_SDL_SetRenderTarget(renderer, renderer->target);
