@@ -289,10 +289,10 @@ static int WIIU_SDL_SetDrawState(WIIU_RenderData * data, const SDL_RenderCommand
 
         if (data->drawState.cliprectEnabled) {
             // make sure scissor is never larger than the colorbuffer to prevent memory corruption
-            scissor.x = SDL_min(viewport->w, rect->x);
-            scissor.y = SDL_min(viewport->h, rect->h);
-            scissor.w = SDL_min(viewport->w, rect->w);
-            scissor.h = SDL_min(viewport->w, rect->h);
+            scissor.x = SDL_clamp(rect->x, 0, viewport->w);
+            scissor.y = SDL_clamp(rect->y, 0, viewport->h);
+            scissor.w = SDL_clamp(rect->w, 0, viewport->w);
+            scissor.h = SDL_clamp(rect->h, 0, viewport->h);
         } else {
             scissor = *viewport;
         }
