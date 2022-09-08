@@ -329,8 +329,8 @@ static SDL_VideoDevice *WIIU_CreateDevice(int devindex)
 
 	device->driverdata = videodata;
 
-    // Setup amount of available displays
-    device->num_displays = 0;
+	// Setup amount of available displays
+	device->num_displays = 0;
 
 	device->VideoInit = WIIU_VideoInit;
 	device->VideoQuit = WIIU_VideoQuit;

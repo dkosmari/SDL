@@ -145,6 +145,11 @@ int WIIU_SDL_QueueGeometry(SDL_Renderer * renderer, SDL_RenderCommand * cmd, SDL
     GX2RBuffer *vertexBuffer;
 
     int count = indices ? num_indices : num_vertices;
+    // discard empty draws or GX2 will crash
+    if (count < 1) {
+        return -1;
+    }
+
     cmd->data.draw.count = count;
 
     size_indices = indices ? size_indices : 0;
