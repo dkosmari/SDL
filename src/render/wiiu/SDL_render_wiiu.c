@@ -28,6 +28,7 @@
 #include "SDL_render_wiiu.h"
 
 #include <gx2/event.h>
+#include <gx2/swap.h>
 #include <gx2/registers.h>
 #include <gx2/state.h>
 #include <gx2r/surface.h>
@@ -71,9 +72,12 @@ SDL_Renderer *WIIU_SDL_CreateRenderer(SDL_Window * window, Uint32 flags)
     renderer->RenderPresent = WIIU_SDL_RenderPresent;
     renderer->DestroyTexture = WIIU_SDL_DestroyTexture;
     renderer->DestroyRenderer = WIIU_SDL_DestroyRenderer;
+    renderer->SetVSync = WIIU_SDL_SetVSync;
     renderer->info = WIIU_RenderDriver.info;
     renderer->driverdata = data;
     renderer->window = window;
+
+    WIIU_SDL_SetVSync(renderer, (flags & SDL_RENDERER_PRESENTVSYNC) != 0);
 
     /* Prepare shaders */
     WIIU_SDL_CreateShaders();
