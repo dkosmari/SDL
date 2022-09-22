@@ -36,6 +36,18 @@
 
 static SDL_bool tvDrcEnabled = SDL_FALSE;
 
+int WIIU_SDL_SetVSync(SDL_Renderer * renderer, const int vsync)
+{
+    GX2SetSwapInterval(vsync ? 1 : 0);
+
+    if (GX2GetSwapInterval() > 0) {
+        renderer->info.flags |= SDL_RENDERER_PRESENTVSYNC;
+    } else {
+        renderer->info.flags &= ~SDL_RENDERER_PRESENTVSYNC;
+    }
+    return 0;
+}
+
 int WIIU_SDL_RenderPresent(SDL_Renderer * renderer)
 {
     WIIU_RenderData *data = (WIIU_RenderData *) renderer->driverdata;
