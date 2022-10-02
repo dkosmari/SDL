@@ -98,6 +98,7 @@ SDL_Renderer *WIIU_SDL_CreateRenderer(SDL_Window * window, Uint32 flags)
     data->drawState.blendMode = SDL_BLENDMODE_INVALID;
     data->drawState.shader = SHADER_INVALID;
     data->drawState.projectionMatrix[3][0] = -1.0f;
+    data->drawState.projectionMatrix[3][1] = 1.0f;
     data->drawState.projectionMatrix[3][3] = 1.0f;
 
     /* Make a texture for the window */
