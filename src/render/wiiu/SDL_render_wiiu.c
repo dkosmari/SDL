@@ -177,10 +177,15 @@ void WIIU_SDL_DestroyWindowTex(SDL_Renderer * renderer, SDL_Window * window)
 int WIIU_SDL_SetRenderTarget(SDL_Renderer * renderer, SDL_Texture * texture)
 {
     WIIU_RenderData *data = (WIIU_RenderData *) renderer->driverdata;
+    WIIU_VideoData *videodata = (WIIU_VideoData *) SDL_GetVideoDevice()->driverdata;
 
     /* Set window or texture as target */
     WIIU_TextureData *tdata = (WIIU_TextureData *)((texture) ? texture->driverdata
                                                              : data->windowTex.driverdata);
+
+    if (!videodata->hasForeground) {
+        return 0;
+    }
 
     /* make sure we're using the correct renderer ctx */
     GX2SetContextState(data->ctx);
