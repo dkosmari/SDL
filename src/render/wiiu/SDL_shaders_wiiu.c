@@ -23,6 +23,8 @@
 #if SDL_VIDEO_RENDER_WIIU
 
 #include "SDL_shaders_wiiu.h"
+#include "SDL_render.h"
+#include "../SDL_sysrender.h"
 
 #include "shaders/colorShader.inc"
 #include "shaders/textureShader.inc"
@@ -37,14 +39,14 @@ void WIIU_SDL_CreateShaders(void)
         WHBGfxShaderGroup* textureShader = &shaderGroups[SHADER_TEXTURE];
 
         WHBGfxLoadGFDShaderGroup(colorShader, 0, colorShader_gsh);
-        WHBGfxInitShaderAttribute(colorShader, "a_position", 0, 0, GX2_ATTRIB_FORMAT_FLOAT_32_32);
-        WHBGfxInitShaderAttribute(colorShader, "a_color", 0, 8, GX2_ATTRIB_FORMAT_UNORM_8_8_8_8);
+        WHBGfxInitShaderAttribute(colorShader, "a_position", 0, offsetof(SDL_VertexSolid, position), GX2_ATTRIB_FORMAT_FLOAT_32_32);
+        WHBGfxInitShaderAttribute(colorShader, "a_color", 0, offsetof(SDL_VertexSolid, color), GX2_ATTRIB_FORMAT_UNORM_8_8_8_8);
         WHBGfxInitFetchShader(colorShader);
 
         WHBGfxLoadGFDShaderGroup(textureShader, 0, textureShader_gsh);
-        WHBGfxInitShaderAttribute(textureShader, "a_position", 0, 0, GX2_ATTRIB_FORMAT_FLOAT_32_32);
-        WHBGfxInitShaderAttribute(textureShader, "a_color", 0, 8, GX2_ATTRIB_FORMAT_UNORM_8_8_8_8);
-        WHBGfxInitShaderAttribute(textureShader, "a_texcoord", 0, 12, GX2_ATTRIB_FORMAT_FLOAT_32_32);
+        WHBGfxInitShaderAttribute(textureShader, "a_position", 0, offsetof(SDL_Vertex, position), GX2_ATTRIB_FORMAT_FLOAT_32_32);
+        WHBGfxInitShaderAttribute(textureShader, "a_color", 0, offsetof(SDL_Vertex, color), GX2_ATTRIB_FORMAT_UNORM_8_8_8_8);
+        WHBGfxInitShaderAttribute(textureShader, "a_texcoord", 0, offsetof(SDL_Vertex, tex_coord), GX2_ATTRIB_FORMAT_FLOAT_32_32);
         WHBGfxInitFetchShader(textureShader);
     }
 }
