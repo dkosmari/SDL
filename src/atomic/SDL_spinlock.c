@@ -37,7 +37,8 @@
 #endif
 
 #if defined(__WIIU__)
-#include <stdatomic.h>
+#include <coreinit/cache.h>
+#include <coreinit/atomic.h>
 #endif
 
 #if defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
@@ -168,8 +169,7 @@ SDL_bool SDL_AtomicTryLock(SDL_SpinLock *lock)
     }
     return res;
 #elif defined(__WIIU__)
-    uint64_t val = 0;
-    return (SDL_bool) atomic_compare_exchange_strong((volatile _Atomic uint64_t*)lock, &val, 1);
+    return OSCompareAndSwapAtomic((volatile uint32_t *)lock, 0u, 1u);
 
 #else
 #error Please implement for your platform.
@@ -212,6 +212,10 @@ void SDL_AtomicUnlock(SDL_SpinLock *lock)
     /* Used for Solaris when not using gcc. */
     *lock = 0;
     membar_producer();
+
+#elif defined(__WIIU__)
+    *lock = 0;
+    OSMemoryBarrier();
 
 #else
     *lock = 0;

@@ -221,6 +221,10 @@ typedef void (*SDL_KernelMemoryBarrierFunc)();
 #include <mbarrier.h>
 #define SDL_MemoryBarrierRelease()  __machine_rel_barrier()
 #define SDL_MemoryBarrierAcquire()  __machine_acq_barrier()
+#elif defined(__WIIU__)
+#include <coreinit/cache.h>
+#define SDL_MemoryBarrierRelease()  OSMemoryBarrier()
+#define SDL_MemoryBarrierAcquire()  OSMemoryBarrier()
 #else
 /* This is correct for the x86 and x64 CPUs, and we'll expand this over time. */
 #define SDL_MemoryBarrierRelease()  SDL_CompilerBarrier()
@@ -233,7 +237,7 @@ typedef void (*SDL_KernelMemoryBarrierFunc)();
     #define SDL_CPUPauseInstruction() __asm__ __volatile__("pause\n")  /* Some assemblers can't do REP NOP, so go with PAUSE. */
 #elif (defined(__arm__) && defined(__ARM_ARCH) && __ARM_ARCH >= 7) || defined(__aarch64__)
     #define SDL_CPUPauseInstruction() __asm__ __volatile__("yield" ::: "memory")
-#elif (defined(__powerpc__) || defined(__powerpc64__))
+#elif (defined(__powerpc__) || defined(__powerpc64__) || defined(__WIIU__))
     #define SDL_CPUPauseInstruction() __asm__ __volatile__("or 27,27,27");
 #elif defined(_MSC_VER) && (defined(_M_IX86) || defined(_M_X64))
     #define SDL_CPUPauseInstruction() _mm_pause()  /* this is actually "rep nop" and not a SIMD instruction. No inline asm in MSVC x86-64! */

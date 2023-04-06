@@ -240,6 +240,11 @@ if(USE_GCC OR USE_CLANG OR USE_INTELCC OR USE_QCC)
   set(OPT_DEF_GCC_ATOMICS ON)
 endif()
 
+if(WIIU)
+  # Prefer coreinit atomics on Wii U due to a hardware bug in load-exclusive and store-exclusive instructions
+  set(OPT_DEF_GCC_ATOMICS OFF)
+endif()
+
 # Default option knobs
 if(UNIX OR MINGW OR MSYS OR (USE_CLANG AND NOT WINDOWS) OR VITA OR PSP OR PS2 OR N3DS OR SDL_CPU_ARM64EC OR WIIU)
   set(OPT_DEF_LIBC ON)
