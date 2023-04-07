@@ -133,7 +133,7 @@ int WIIU_SDL_QueueGeometry(SDL_Renderer * renderer, SDL_RenderCommand * cmd, SDL
 int WIIU_SDL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, void *vertices, size_t vertsize);
 int WIIU_SDL_RenderReadPixels(SDL_Renderer * renderer, const SDL_Rect * rect,
                           Uint32 format, void * pixels, int pitch);
-void WIIU_SDL_RenderPresent(SDL_Renderer * renderer);
+int WIIU_SDL_RenderPresent(SDL_Renderer * renderer);
 void WIIU_SDL_DestroyTexture(SDL_Renderer * renderer, SDL_Texture * texture);
 void WIIU_SDL_DestroyRenderer(SDL_Renderer * renderer);
 

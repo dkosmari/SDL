@@ -37,7 +37,7 @@
 
 static SDL_bool tvDrcEnabled = SDL_FALSE;
 
-void WIIU_SDL_RenderPresent(SDL_Renderer * renderer)
+int WIIU_SDL_RenderPresent(SDL_Renderer * renderer)
 {
     WIIU_RenderData *data = (WIIU_RenderData *) renderer->driverdata;
     WIIU_TextureData *tdata = (WIIU_TextureData *) data->windowTex.driverdata;
@@ -92,6 +92,8 @@ void WIIU_SDL_RenderPresent(SDL_Renderer * renderer)
     /* Free the list of render and draw data */
     WIIU_FreeRenderData(data);
     WIIU_TextureDoneRendering(data);
+
+    return 0;
 }
 
 #endif /* SDL_VIDEO_RENDER_WIIU */

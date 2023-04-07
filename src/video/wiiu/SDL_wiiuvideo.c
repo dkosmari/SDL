@@ -338,7 +338,7 @@ static void WIIU_DeleteDevice(SDL_VideoDevice *device)
 	SDL_free(device);
 }
 
-static SDL_VideoDevice *WIIU_CreateDevice(int devindex)
+static SDL_VideoDevice *WIIU_CreateDevice(void)
 {
 	SDL_VideoDevice *device;
 	WIIU_VideoData *videodata;

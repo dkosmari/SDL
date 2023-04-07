@@ -242,6 +242,11 @@ static const char *WIIU_JoystickGetDeviceName(int device_index)
 	return "Unknown";
 }
 
+static const char * WIIU_JoystickGetDevicePath(int device_index)
+{
+    return NULL;
+}
+
 /* Function to get the player index of a joystick */
 static int WIIU_JoystickGetDevicePlayerIndex(int device_index)
 {
@@ -627,6 +632,7 @@ SDL_JoystickDriver SDL_WIIU_JoystickDriver =
 	WIIU_JoystickGetCount,
 	WIIU_JoystickDetect,
 	WIIU_JoystickGetDeviceName,
+	WIIU_JoystickGetDevicePath,
 	WIIU_JoystickGetDevicePlayerIndex,
 	WIIU_JoystickSetDevicePlayerIndex,
 	WIIU_JoystickGetDeviceGUID,

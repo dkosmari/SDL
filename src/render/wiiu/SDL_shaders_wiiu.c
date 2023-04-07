@@ -60,9 +60,9 @@ static GX2VertexShader* WiiU_LoadGFDVertexShader(uint32_t index, const void* fil
     }
 
     shader->gx2rBuffer.flags = GX2R_RESOURCE_BIND_SHADER_PROGRAM |
-                                GX2R_RESOURCE_USAGE_CPU_READ |
-                                GX2R_RESOURCE_USAGE_CPU_WRITE |
-                                GX2R_RESOURCE_USAGE_GPU_READ;
+                               GX2R_RESOURCE_USAGE_CPU_READ |
+                               GX2R_RESOURCE_USAGE_CPU_WRITE |
+                               GX2R_RESOURCE_USAGE_GPU_READ;
     shader->gx2rBuffer.elemSize = programSize;
     shader->gx2rBuffer.elemCount = 1;
     shader->gx2rBuffer.buffer = NULL;
@@ -80,7 +80,7 @@ static GX2VertexShader* WiiU_LoadGFDVertexShader(uint32_t index, const void* fil
         return NULL;
     }
 
-    GX2RUnlockBufferEx(&shader->gx2rBuffer, 0);
+    GX2RUnlockBufferEx(&shader->gx2rBuffer, GX2R_RESOURCE_BIND_NONE);
     // according to wut this needs to be invalidated again for some reason
     GX2Invalidate(GX2_INVALIDATE_MODE_CPU_SHADER, shader->program, shader->size);
     return shader;
@@ -109,9 +109,9 @@ static GX2PixelShader* WiiU_LoadGFDPixelShader(uint32_t index, const void* file)
     }
 
     shader->gx2rBuffer.flags = GX2R_RESOURCE_BIND_SHADER_PROGRAM |
-                                GX2R_RESOURCE_USAGE_CPU_READ |
-                                GX2R_RESOURCE_USAGE_CPU_WRITE |
-                                GX2R_RESOURCE_USAGE_GPU_READ;
+                               GX2R_RESOURCE_USAGE_CPU_READ |
+                               GX2R_RESOURCE_USAGE_CPU_WRITE |
+                               GX2R_RESOURCE_USAGE_GPU_READ;
     shader->gx2rBuffer.elemSize = programSize;
     shader->gx2rBuffer.elemCount = 1;
     shader->gx2rBuffer.buffer = NULL;
@@ -129,7 +129,7 @@ static GX2PixelShader* WiiU_LoadGFDPixelShader(uint32_t index, const void* file)
         return NULL;
     }
 
-    GX2RUnlockBufferEx(&shader->gx2rBuffer, 0);
+    GX2RUnlockBufferEx(&shader->gx2rBuffer, GX2R_RESOURCE_BIND_NONE);
     // according to wut this needs to be invalidated again for some reason
     GX2Invalidate(GX2_INVALIDATE_MODE_CPU_SHADER, shader->program, shader->size);
     return shader;
