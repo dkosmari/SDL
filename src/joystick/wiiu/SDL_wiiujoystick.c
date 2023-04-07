@@ -269,15 +269,13 @@ static void WIIU_JoystickSetDevicePlayerIndex(int device_index, int player_index
 /* Function to return the stable GUID for a plugged in device */
 static SDL_JoystickGUID WIIU_JoystickGetDeviceGUID(int device_index)
 {
-	/* These are random GUIDs that were generated with http://guid.one/ . */
 	SDL_JoystickGUID guid;
-
 	const int wiiu_device = WIIU_GetDeviceForIndex(device_index);
 
 	switch (wiiu_device)
 	{
 		case WIIU_DEVICE_GAMEPAD:
-			guid = (SDL_JoystickGUID){{0x49, 0xdc, 0xab, 0x4b, 0x72, 0xe9, 0x42, 0xa1, 0xad, 0x93, 0x8e, 0x4a, 0xeb, 0x88, 0xd8, 0x68}};
+			guid = SDL_CreateJoystickGUIDForName("Wii U Gamepad");
 			break;
 
 		case WIIU_DEVICE_WPAD(0):
@@ -289,25 +287,21 @@ static SDL_JoystickGUID WIIU_JoystickGetDeviceGUID(int device_index)
 				case WPAD_EXT_CORE:
 				case WPAD_EXT_MPLUS:
 				default:
-					/* Wii Remote */
-					guid = (SDL_JoystickGUID){{0x88, 0xaa, 0x88, 0xb5, 0x4e, 0x27, 0x42, 0xd2, 0xb4, 0xbb, 0xe0, 0x42, 0x84, 0xa5, 0xa7, 0xa1}};
+					guid = SDL_CreateJoystickGUIDForName("Wii Remote");
 					break;
 
 				case WPAD_EXT_NUNCHUK:
 				case WPAD_EXT_MPLUS_NUNCHUK:
-					/* Wii Remote + Nunchuk */
-					guid = (SDL_JoystickGUID){{0xcb, 0x9d, 0x4b, 0xbb, 0x69, 0x36, 0x49, 0x4d, 0x89, 0x17, 0x19, 0xaf, 0x55, 0xb2, 0x7e, 0x4d}};
+					guid = SDL_CreateJoystickGUIDForName("Wii Nunchuk");
 					break;
 
 				case WPAD_EXT_CLASSIC:
 				case WPAD_EXT_MPLUS_CLASSIC:
-					/* Wii Classic Controller */
-					guid = (SDL_JoystickGUID){{0xfc, 0x54, 0x73, 0x96, 0x88, 0x6d, 0x4f, 0x55, 0xad, 0xd9, 0x13, 0x76, 0x7f, 0x0f, 0x51, 0x1c}};
+					guid = SDL_CreateJoystickGUIDForName("Wii Classic Controller");
 					break;
 
 				case WPAD_EXT_PRO_CONTROLLER:
-					/* Wii U Pro Controller */
-					guid = (SDL_JoystickGUID){{0x69, 0x72, 0xc1, 0x58, 0x6f, 0x70, 0x4c, 0x4e, 0x9d, 0x80, 0xcc, 0x89, 0x57, 0xab, 0xb8, 0x14}};
+					guid = SDL_CreateJoystickGUIDForName("Wii U Pro Controller");
 					break;
 			}
 
