@@ -60,6 +60,7 @@ static SDL_AudioDevice* cb_this;
 #define next_id(id) (id + 1) % NUM_BUFFERS
 
 static int WIIUAUDIO_OpenDevice(_THIS, const char* devname) {
+    int ret = 0;
     AXVoiceOffsets offs;
     AXVoiceVeData vol = {
         .volume = 0x8000,
@@ -68,7 +69,10 @@ static int WIIUAUDIO_OpenDevice(_THIS, const char* devname) {
     float srcratio;
 
     this->hidden = (struct SDL_PrivateAudioData*)SDL_malloc(sizeof(*this->hidden));
-    if (this->hidden == NULL) return SDL_OutOfMemory();
+    if (this->hidden == NULL) {
+        return SDL_OutOfMemory();
+    }
+
     SDL_zerop(this->hidden);
 
 /*  We *must not* change cores when setting stuff up */
@@ -117,7 +121,8 @@ static int WIIUAUDIO_OpenDevice(_THIS, const char* devname) {
         if (this->hidden->mixbufs[i] == NULL) {
             AXQuit();
             printf("DEBUG: Couldn't allocate buffer");
-            return SDL_SetError("Couldn't allocate buffer");
+            ret = SDL_SetError("Couldn't allocate buffer");
+            goto end;
         }
 
         memset(this->hidden->mixbufs[i], 0, this->spec.size);
@@ -129,7 +134,8 @@ static int WIIUAUDIO_OpenDevice(_THIS, const char* devname) {
     if (this->hidden->deintvbuf == NULL) {
         AXQuit();
         printf("DEBUG: Couldn't allocate deinterleave buffer");
-        return SDL_SetError("Couldn't allocate deinterleave buffer");
+        ret = SDL_SetError("Couldn't allocate deinterleave buffer");
+        goto end;
     }
 
 
@@ -139,7 +145,8 @@ static int WIIUAUDIO_OpenDevice(_THIS, const char* devname) {
         if (!this->hidden->voice[i]) {
             AXQuit();
             printf("DEBUG: couldn't get voice\n");
-            return SDL_OutOfMemory();
+            ret = SDL_OutOfMemory();
+            goto end;
         }
 
     /*  Start messing with it */
@@ -211,9 +218,10 @@ static int WIIUAUDIO_OpenDevice(_THIS, const char* devname) {
     cb_this = this; //wish there was a better way
     AXRegisterAppFrameCallback(_WIIUAUDIO_framecallback);
 
+end: ;
 /*  Put the thread affinity back to normal - we won't call any more AX funcs */
     OSSetThreadAffinity(OSGetCurrentThread(), old_affinity);
-    return 0;
+    return ret;
 }
 
 /*  Called every 3ms before a frame of audio is rendered. Keep it fast! */
