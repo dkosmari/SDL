@@ -23,6 +23,7 @@
 #if SDL_AUDIO_DRIVER_WIIU
 
 #include <stdio.h>
+#include <malloc.h>
 
 #include "SDL_audio.h"
 #include "SDL_error.h"
@@ -40,6 +41,7 @@
 #include <coreinit/cache.h>
 #include <coreinit/thread.h>
 #include <coreinit/time.h>
+#include <coreinit/memorymap.h>
 
 #define WIIUAUDIO_DRIVER_NAME "wiiu"
 
@@ -67,6 +69,9 @@ static int WIIUAUDIO_OpenDevice(_THIS, const char* devname) {
     };
     uint32_t old_affinity;
     float srcratio;
+    Uint8* mixbuf = NULL;
+    uint32_t mixbuf_allocation_count = 0;
+    Uint8* mixbuf_allocations[32];
 
     this->hidden = (struct SDL_PrivateAudioData*)SDL_malloc(sizeof(*this->hidden));
     if (this->hidden == NULL) {
@@ -115,18 +120,42 @@ static int WIIUAUDIO_OpenDevice(_THIS, const char* devname) {
 /*  We changed channels and samples, so recalculate the spec */
     SDL_CalculateAudioSpec(&this->spec);
 
-/*  Allocate buffers for double-buffering and samples */
-    for (int i = 0; i < NUM_BUFFERS; i++) {
-        this->hidden->mixbufs[i] = SDL_malloc(this->spec.size);
-        if (this->hidden->mixbufs[i] == NULL) {
-            AXQuit();
-            printf("DEBUG: Couldn't allocate buffer");
-            ret = SDL_SetError("Couldn't allocate buffer");
-            goto end;
+/*  Allocate buffers for double-buffering and samples.
+    Make sure the entire mixbuf is in a 512MiB block for the DSP to be accessible. */
+    for (int i = 0; i < 32; i++) {
+        Uint32 physStart, physEnd;
+        mixbuf = memalign(0x40, this->spec.size * NUM_BUFFERS);
+        if (!mixbuf) {
+            break;
         }
 
-        memset(this->hidden->mixbufs[i], 0, this->spec.size);
-        DCStoreRange(this->hidden->mixbufs[i], this->spec.size);
+        physStart = OSEffectiveToPhysical((uint32_t) mixbuf) & 0x1fffffff;
+        physEnd = physStart + this->spec.size * NUM_BUFFERS;
+        if ((physEnd & 0xe0000000) == 0) {
+            break;
+        }
+
+        mixbuf_allocations[mixbuf_allocation_count] = mixbuf;
+        mixbuf_allocation_count++;
+        mixbuf = NULL;
+    }
+
+/*  Free the failed attempts */
+    while (mixbuf_allocation_count--) {
+        free(mixbuf_allocations[mixbuf_allocation_count]);
+    }
+
+    if (!mixbuf) {
+        printf("Couldn't allocate mix buffer\n");
+        ret = SDL_OutOfMemory();
+        goto end;
+    }
+
+    memset(mixbuf, 0, this->spec.size * NUM_BUFFERS);
+    DCStoreRange(mixbuf, this->spec.size * NUM_BUFFERS);
+
+    for (int i = 0; i < NUM_BUFFERS; i++) {
+        this->hidden->mixbufs[i] = mixbuf + this->spec.size * i;
     }
 
 /*  Allocate a scratch buffer for deinterleaving operations */
@@ -363,9 +392,7 @@ static void WIIUAUDIO_CloseDevice(_THIS) {
         }
         AXQuit();
     }
-    for (int i = 0; i < NUM_BUFFERS; i++) {
-        if (this->hidden->mixbufs[i]) SDL_free(this->hidden->mixbufs[i]);
-    }
+    if (this->hidden->mixbufs[0]) free(this->hidden->mixbufs[0]);
     if (this->hidden->deintvbuf) SDL_free(this->hidden->deintvbuf);
     SDL_free(this->hidden);
 }
