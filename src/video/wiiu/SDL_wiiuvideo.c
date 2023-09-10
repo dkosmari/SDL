@@ -160,6 +160,11 @@ static int WIIU_ForegroundReleased(_THIS)
 
 	WIIU_GfxHeap_MEM1Destroy();
 	WIIU_GfxHeap_ForegroundDestroy();
+
+	// This is necessary to avoid a black frame on leaving foreground
+	GX2SetTVEnable(TRUE);
+	GX2SetDRCEnable(TRUE);
+
 	videodata->hasForeground = SDL_FALSE;
 
 	return 0;
