@@ -34,22 +34,30 @@ SDL_CreateMutex(void)
 
     /* Allocate the structure */
     mutex = (OSMutex *) SDL_calloc(1, sizeof(OSMutex));
-    OSInitMutex(mutex);
+    if (mutex != NULL) {
+        OSInitMutex(mutex);
+    } else {
+        SDL_OutOfMemory();
+    }
     return (SDL_mutex *)mutex;
 }
 
 void
 SDL_DestroyMutex(SDL_mutex * mutex)
 {
-    if (mutex) {
+    if (mutex != NULL) {
         SDL_free(mutex);
     }
 }
 
 /* Lock the mutex */
 int
-SDL_LockMutex(SDL_mutex * mutex)
+SDL_LockMutex(SDL_mutex * mutex) SDL_NO_THREAD_SAFETY_ANALYSIS /* clang doesn't know about NULL mutexes */
 {
+    if (mutex == NULL) {
+        return 0;
+    }
+
     OSLockMutex((OSMutex *)mutex);
     return 0;
 }
@@ -57,12 +65,20 @@ SDL_LockMutex(SDL_mutex * mutex)
 int
 SDL_TryLockMutex(SDL_mutex * mutex)
 {
+    if (mutex == NULL) {
+        return 0;
+    }
+
     return OSTryLockMutex((OSMutex *)mutex) ? 0 : SDL_MUTEX_TIMEDOUT;
 }
 
 int
-SDL_UnlockMutex(SDL_mutex * mutex)
+SDL_UnlockMutex(SDL_mutex * mutex) SDL_NO_THREAD_SAFETY_ANALYSIS /* clang doesn't know about NULL mutexes */
 {
+    if (mutex == NULL) {
+        return 0;
+    }
+
     OSUnlockMutex((OSMutex *)mutex);
     return 0;
 }
