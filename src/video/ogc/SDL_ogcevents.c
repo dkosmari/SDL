@@ -27,6 +27,7 @@
 #include "../../events/SDL_events_c.h"
 
 #include "SDL_ogcevents_c.h"
+#include "SDL_ogcmouse.h"
 #include "SDL_ogcvideo.h"
 
 #include <ogc/system.h>
@@ -48,6 +49,9 @@ static const struct {
 
 static void pump_ir_events(_THIS)
 {
+    SDL_Cursor *cursor;
+    bool wiimote_pointed_at_screen = false;
+
     if (!_this->windows) return;
 
     if (!SDL_WasInit(SDL_INIT_JOYSTICK)) {
@@ -60,10 +64,11 @@ static void pump_ir_events(_THIS)
     for (int i = 0; i < 4; i++) {
         WPADData *data = WPAD_Data(i);
 
-        if (!data->ir.smooth_valid) continue;
+        if (!data->ir.valid) continue;
 
+        wiimote_pointed_at_screen = true;
         SDL_SendMouseMotion(_this->windows, i,
-                            0, data->ir.sx, data->ir.sy);
+                            0, data->ir.x, data->ir.y);
 
         for (int b = 0; b < MAX_WII_MOUSE_BUTTONS; b++) {
             if (data->btns_d & s_mouse_button_map[b].wii) {
@@ -76,6 +81,17 @@ static void pump_ir_events(_THIS)
             }
         }
     }
+
+    /* Unfortunately SDL in practice supports only one mouse, so we are
+     * consolidating all the wiimotes as a single device.
+     * Here we check if any wiimote is pointed at the screen, in which case we
+     * show the default cursor (the Wii hand); if not, then the default cursor
+     * is hidden. Note that this only affects applications which haven't
+     * explicitly set a cursor: the others remain in full control of whether a
+     * cursor should be shown or not. */
+    cursor = wiimote_pointed_at_screen ?
+        OGC_CreateSystemCursor(SDL_SYSTEM_CURSOR_HAND) : NULL;
+    SDL_SetDefaultCursor(cursor);
 }
 #endif
 
