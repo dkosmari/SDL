@@ -187,11 +187,21 @@ static SDL_JoystickID s_connected_instances[MAX_JOYSTICKS];
 static char s_detected_devices[MAX_JOYSTICKS];
 static char s_gc_failed_reads = 0;
 static u32 s_gc_last_scanpads = 0;
+static bool s_hardware_queried = false;
+
+
 #ifdef __wii__
 static bool s_wii_has_new_data[MAX_WII_JOYSTICKS];
 static bool s_accelerometers_as_axes = false;
+
+static void SDLCALL
+on_hint_accel_as_joystick_cb(void *userdata, const char *name,
+                             const char *oldValue, const char *hint)
+{
+    s_accelerometers_as_axes = SDL_GetStringBoolean(hint, SDL_FALSE);
+}
+
 #endif
-static bool s_hardware_queried = false;
 
 /* Joypad index is 0-11: 4 GC, 4 Wiimotes and (if split_joysticks) 4 expansions
  */
@@ -298,13 +308,6 @@ static void update_rumble(SDL_Joystick *joystick)
     enable_rumble(joystick->hwdata->index, rumble);
 }
 
-static void SDLCALL
-on_hint_accel_as_joystick_cb(void *userdata, const char *name,
-                             const char *oldValue, const char *hint)
-{
-    s_accelerometers_as_axes = SDL_GetStringBoolean(hint, SDL_FALSE);
-}
-
 /* Function to scan the system for joysticks.
  * This function should return the number of available
  * joysticks.  Joystick 0 should be the system default joystick.
@@ -319,8 +322,10 @@ static int OGC_JoystickInit(void)
     /* We don't call WPAD_Init() here, since it's already been called by
      * SDL_main for the Wii */
 
+#ifdef __wii__
     SDL_AddHintCallback(SDL_HINT_ACCELEROMETER_AS_JOYSTICK,
                         on_hint_accel_as_joystick_cb, NULL);
+#endif
 
     /* Initialize the needed variables */
     for (int i = 0; i < MAX_JOYSTICKS; i++) {
@@ -648,6 +653,7 @@ static int OGC_JoystickSetSensorsEnabled(SDL_Joystick *joystick, SDL_bool enable
 }
 
 #ifdef __wii__
+
 static s16 WPAD_Orient(WPADData *data, int motion)
 {
     float out;
@@ -1108,8 +1114,10 @@ static void OGC_JoystickClose(SDL_Joystick *joystick)
 
 void OGC_JoystickQuit(void)
 {
+#ifdef __wii__
     SDL_DelHintCallback(SDL_HINT_ACCELEROMETER_AS_JOYSTICK,
                         on_hint_accel_as_joystick_cb, NULL);
+#endif
 }
 
 static SDL_bool OGC_JoystickGetGamepadMapping(int device_index,
