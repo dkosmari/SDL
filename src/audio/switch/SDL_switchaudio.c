@@ -33,12 +33,25 @@
 
 #include "SDL_switchaudio.h"
 
+static const AudioRendererConfig arConfig =
+    {
+        .output_rate     = AudioRendererOutputRate_48kHz,
+        .num_voices      = 24,
+        .num_effects     = 0,
+        .num_sinks       = 1,
+        .num_mix_objs    = 1,
+        .num_mix_buffers = 2,
+    };
+
 static int
 SWITCHAUDIO_OpenDevice(_THIS, const char *devname)
 {
+    static const u8 sink_channels[] = {0, 1};
+    SDL_bool supported_format = SDL_FALSE;
+    SDL_AudioFormat test_format;
     Result res;
-    PcmFormat fmt;
-    int mixlen, aligned_size, i;
+    u32 size;
+    int mpid;
 
     this->hidden = (struct SDL_PrivateAudioData *) SDL_malloc(sizeof(*this->hidden));
     if (this->hidden == NULL) {
@@ -46,84 +59,68 @@ SWITCHAUDIO_OpenDevice(_THIS, const char *devname)
     }
     SDL_zerop(this->hidden);
 
-    res = audoutInitialize();
+    res = audrenInitialize(&arConfig);
     if (R_FAILED(res)) {
-        SDL_free(this->hidden);
-        this->hidden = NULL;
-        return SDL_SetError("audoutInitialize failed (0x%x)", res);
+        return SDL_SetError("audrenInitialize failed (0x%x)", res);
+    }
+    this->hidden->audr_device = true;
+
+    res = audrvCreate(&this->hidden->driver, &arConfig, 2);
+    if (R_FAILED(res)) {
+        return SDL_SetError("audrvCreate failed (0x%x)", res);
+    }
+    this->hidden->audr_driver = true;
+
+    test_format = SDL_FirstAudioFormat(this->spec.format);
+    while ((!supported_format) && (test_format)) {
+        if (test_format == AUDIO_S16SYS) {
+            supported_format = SDL_TRUE;
+        }
+        else {
+            test_format = SDL_NextAudioFormat();
+        }
+    }
+    if (!supported_format) {
+        return SDL_SetError("Unsupported audio format");
     }
 
-    fmt = audoutGetPcmFormat();
-    switch (fmt) {
-    case PcmFormat_Invalid:
-        SDL_free(this->hidden);
-        this->hidden = NULL;
-        return SDL_SetError("audoutGetPcmFormat returned invalid value (0x%x)", (int)fmt);
-    case PcmFormat_Int8:
-        this->spec.format = AUDIO_S8;
-        break;
-    case PcmFormat_Int16:
-        this->spec.format = AUDIO_S16SYS;
-        break;
-    case PcmFormat_Int32:
-        this->spec.format = AUDIO_S32SYS;
-        break;
-    case PcmFormat_Float:
-        this->spec.format = AUDIO_F32SYS;
-        break;
-    case PcmFormat_Int24:
-    case PcmFormat_Adpcm:
-        SDL_free(this->hidden);
-        this->hidden = NULL;
-        return SDL_SetError("audoutGetPcmFormat returned unsupported sample format (0x%x)", (int)fmt);
-        break;
-    }
-
-    this->spec.freq = (int)audoutGetSampleRate();
-    this->spec.channels = audoutGetChannelCount();
-
+    this->spec.format = test_format;
     SDL_CalculateAudioSpec(&this->spec);
 
-    aligned_size = (this->spec.size + 0xfff) & ~0xfff;
-    mixlen = aligned_size * NUM_BUFFERS;
-
-    this->hidden->rawbuf = memalign(0x1000, mixlen);
-    if (this->hidden->rawbuf == NULL) {
-        SDL_free(this->hidden);
-        this->hidden = NULL;
-        return SDL_SetError("Couldn't allocate mixing buffer");
+    size = (u32) ((this->spec.size * 2) + 0xfff) & ~0xfff;
+    this->hidden->pool = memalign(0x1000, size);
+    for (int i = 0; i < 2; i++) {
+        this->hidden->buffer[i].data_raw = this->hidden->pool;
+        this->hidden->buffer[i].size = this->spec.size * 2;
+        this->hidden->buffer[i].start_sample_offset = i * this->spec.samples;
+        this->hidden->buffer[i].end_sample_offset = this->hidden->buffer[i].start_sample_offset + this->spec.samples;
+        this->hidden->buffer_tmp = malloc(this->spec.size);
     }
 
-    SDL_memset(this->hidden->rawbuf, 0, mixlen);
-    for (i = 0; i < NUM_BUFFERS; i++) {
-        this->hidden->out_buffers[i] = &this->hidden->rawbuf[i * aligned_size];
-        this->hidden->buffer[i].next = NULL;
-        this->hidden->buffer[i].buffer = this->hidden->out_buffers[i];
-        this->hidden->buffer[i].buffer_size = aligned_size;
-        this->hidden->buffer[i].data_size = this->spec.size;
-        this->hidden->buffer[i].data_offset = 0;
-    }
+    mpid = audrvMemPoolAdd(&this->hidden->driver, this->hidden->pool, size);
+    audrvMemPoolAttach(&this->hidden->driver, mpid);
 
-    this->hidden->cur_buffer = this->hidden->next_buffer;
-    this->hidden->next_buffer = (this->hidden->next_buffer + 1) % NUM_BUFFERS;
+    audrvDeviceSinkAdd(&this->hidden->driver, AUDREN_DEFAULT_DEVICE_NAME, 2, sink_channels);
 
-    res = audoutAppendAudioOutBuffer(&this->hidden->buffer[this->hidden->cur_buffer]);
+    res = audrenStartAudioRenderer();
     if (R_FAILED(res)) {
-        free(this->hidden->rawbuf);
-        this->hidden->rawbuf = NULL;
-        SDL_free(this->hidden);
-        this->hidden = NULL;
-        return SDL_SetError("audoutAppendAudioOutBuffer failed (0x%x)", res);
+        return SDL_SetError("audrenStartAudioRenderer failed (0x%x)", res);
     }
 
-    res = audoutStartAudioOut();
-    if (R_FAILED(res)) {
-        free(this->hidden->rawbuf);
-        this->hidden->rawbuf = NULL;
-        SDL_free(this->hidden);
-        this->hidden = NULL;
-        return SDL_SetError("audoutStartAudioOut failed (0x%x)", res);
+    audrvVoiceInit(&this->hidden->driver, 0, this->spec.channels, PcmFormat_Int16, this->spec.freq);
+    audrvVoiceSetDestinationMix(&this->hidden->driver, 0, AUDREN_FINAL_MIX_ID);
+    if (this->spec.channels == 1) {
+        audrvVoiceSetMixFactor(&this->hidden->driver, 0, 1.0f, 0, 0);
+        audrvVoiceSetMixFactor(&this->hidden->driver, 0, 1.0f, 0, 1);
     }
+    else {
+        audrvVoiceSetMixFactor(&this->hidden->driver, 0, 1.0f, 0, 0);
+        audrvVoiceSetMixFactor(&this->hidden->driver, 0, 0.0f, 0, 1);
+        audrvVoiceSetMixFactor(&this->hidden->driver, 0, 0.0f, 1, 0);
+        audrvVoiceSetMixFactor(&this->hidden->driver, 0, 1.0f, 1, 1);
+    }
+
+    audrvVoiceStart(&this->hidden->driver, 0);
 
     return 0;
 }
@@ -131,32 +128,72 @@ SWITCHAUDIO_OpenDevice(_THIS, const char *devname)
 static void
 SWITCHAUDIO_PlayDevice(_THIS)
 {
-    this->hidden->cur_buffer = this->hidden->next_buffer;
-    audoutAppendAudioOutBuffer(&this->hidden->buffer[this->hidden->cur_buffer]);
-    this->hidden->next_buffer = (this->hidden->next_buffer + 1) % NUM_BUFFERS;
+    int current = -1;
+    for (int i = 0; i < 2; i++) {
+        if (this->hidden->buffer[i].state == AudioDriverWaveBufState_Free
+            || this->hidden->buffer[i].state == AudioDriverWaveBufState_Done) {
+            current = i;
+            break;
+        }
+    }
+
+    if (current >= 0) {
+        Uint8 *ptr = (Uint8 *) (this->hidden->pool + (current * this->spec.size));
+        memcpy(ptr, this->hidden->buffer_tmp, this->spec.size);
+        armDCacheFlush(ptr, this->spec.size);
+        audrvVoiceAddWaveBuf(&this->hidden->driver, 0, &this->hidden->buffer[current]);
+    }
+    else if (!audrvVoiceIsPlaying(&this->hidden->driver, 0)) {
+        audrvVoiceStart(&this->hidden->driver, 0);
+    }
+
+    audrvUpdate(&this->hidden->driver);
+
+    if (current >= 0) {
+        while (this->hidden->buffer[current].state != AudioDriverWaveBufState_Playing) {
+            audrvUpdate(&this->hidden->driver);
+            audrenWaitFrame();
+        }
+    }
+    else {
+        current = -1;
+        for (int i = 0; i < 2; i++) {
+            if (this->hidden->buffer[i].state == AudioDriverWaveBufState_Playing) {
+                current = i;
+                break;
+            }
+        }
+        while (this->hidden->buffer[current].state == AudioDriverWaveBufState_Playing) {
+            audrvUpdate(&this->hidden->driver);
+            audrenWaitFrame();
+        }
+    }
 }
 
 static void
 SWITCHAUDIO_WaitDevice(_THIS)
 {
-    audoutWaitPlayFinish(&this->hidden->released_out_buffer, &this->hidden->released_out_count, UINT64_MAX);
 }
 
 static Uint8
 *SWITCHAUDIO_GetDeviceBuf(_THIS)
 {
-    return this->hidden->out_buffers[this->hidden->next_buffer];
+    return this->hidden->buffer_tmp;
 }
 
 static void
 SWITCHAUDIO_CloseDevice(_THIS)
 {
-    audoutStopAudioOut();
-    audoutExit();
+    if (this->hidden->audr_driver) {
+        audrvClose(&this->hidden->driver);
+    }
 
-    if (this->hidden->rawbuf) {
-        free(this->hidden->rawbuf);
-        this->hidden->rawbuf = NULL;
+    if (this->hidden->audr_device) {
+        audrenExit();
+    }
+
+    if (this->hidden->buffer_tmp) {
+        free(this->hidden->buffer_tmp);
     }
 
     SDL_free(this->hidden);
@@ -165,7 +202,7 @@ SWITCHAUDIO_CloseDevice(_THIS)
 static void
 SWITCHAUDIO_ThreadInit(_THIS)
 {
-    (void)this;
+
 }
 
 static SDL_bool
@@ -178,13 +215,13 @@ SWITCHAUDIO_Init(SDL_AudioDriverImpl *impl)
     impl->CloseDevice = SWITCHAUDIO_CloseDevice;
     impl->ThreadInit = SWITCHAUDIO_ThreadInit;
 
-    impl->OnlyHasDefaultOutputDevice = SDL_TRUE;
+    impl->OnlyHasDefaultOutputDevice = 1;
 
-    return SDL_TRUE;
+    return 1;
 }
 
-AudioBootStrap SWITCHAUDIOOUT_bootstrap = {
-    "switchout", "Nintendo Switch audio out driver", SWITCHAUDIO_Init, SDL_FALSE
+AudioBootStrap SWITCHAUDIO_bootstrap = {
+    "switch", "Nintendo Switch audio driver", SWITCHAUDIO_Init, 0
 };
 
 #endif /* SDL_AUDIO_DRIVER_SWITCH */

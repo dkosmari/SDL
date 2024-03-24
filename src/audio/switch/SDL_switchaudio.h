@@ -28,21 +28,14 @@
 /* Hidden "this" pointer for the audio functions */
 #define _THIS   SDL_AudioDevice *this
 
-#define NUM_BUFFERS 2
-
 struct SDL_PrivateAudioData
 {
-    AudioOutBuffer buffer[NUM_BUFFERS];
-    AudioOutBuffer *released_out_buffer;
-    u32 released_out_count;
-    /* The raw allocated mixing buffer. */
-    Uint8   *rawbuf;
-    /* Individual mixing buffers. */
-    void *out_buffers[NUM_BUFFERS];
-    /* Index of the next available mixing buffer. */
-    int     next_buffer;
-    /* Currently playing buffer */
-    int     cur_buffer;
+    AudioDriver driver;
+    AudioDriverWaveBuf buffer[2];
+    void *buffer_tmp;
+    void *pool;
+    bool audr_device;
+    bool audr_driver;
 };
 
 #endif /* SDL_switchaudio_h_ */

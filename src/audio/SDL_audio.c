@@ -112,7 +112,7 @@ static const AudioBootStrap *const bootstrap[] = {
     &EMSCRIPTENAUDIO_bootstrap,
 #endif
 #if SDL_AUDIO_DRIVER_SWITCH
-    &SWITCHAUDIOOUT_bootstrap,
+    &SWITCHAUDIO_bootstrap,
 #endif
 #if SDL_AUDIO_DRIVER_JACK
     &JACK_bootstrap,
