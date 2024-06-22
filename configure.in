@@ -934,7 +934,7 @@ Checkn3ds()
         ARCH=n3ds
         N3DS_CFLAGS="-ffunction-sections -fdata-sections -march=armv6k \
                      -mtune=mpcore -mfloat-abi=hard -mword-relocations \
-                     -I$DEVKITPRO/libctru/include -DARM11 -D_3DS"
+                     -I$DEVKITPRO/libctru/include -D__3DS__"
         EXTRA_CFLAGS="$EXTRA_CFLAGS $N3DS_CFLAGS"
         CFLAGS="$CFLAGS $N3DS_CFLAGS"
         SDL_CFLAGS="$SDL_CFLAGS $N3DS_CFLAGS"

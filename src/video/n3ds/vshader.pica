@@ -13,11 +13,9 @@
 .out outpos position
 .out outtc0 texcoord0
 
-; Inputs (defined as aliases for convenience)
-.alias inpos v0
-.alias intex v1
-
-.bool test
+; Inputs
+.in inpos v0
+.in intex v1
 
 .proc main
 	; Force the w component of inpos to be 1.0
