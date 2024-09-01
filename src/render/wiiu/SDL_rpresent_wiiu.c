@@ -32,7 +32,6 @@
 #include <gx2/draw.h>
 #include <gx2/swap.h>
 #include <gx2/display.h>
-#include <gx2r/buffer.h>
 #include <gx2r/draw.h>
 
 static SDL_bool tvDrcEnabled = SDL_FALSE;
@@ -59,39 +58,15 @@ int WIIU_SDL_RenderPresent(SDL_Renderer * renderer)
     /* Restore SDL context state */
     GX2SetContextState(data->ctx);
 
+    /* Notify renderer that the frame is complete */
+    WIIU_FrameDone(data);
+
     /* TV and DRC can now be enabled after the first frame was drawn */
     if (!tvDrcEnabled) {
         GX2SetTVEnable(TRUE);
         GX2SetDRCEnable(TRUE);
         tvDrcEnabled = SDL_TRUE;
     }
-
-    /* Wait for vsync */
-    if (renderer->info.flags & SDL_RENDERER_PRESENTVSYNC) {
-        uint32_t swap_count, flip_count;
-        OSTime last_flip, last_vsync;
-        uint32_t wait_count = 0;
-
-        while (true) {
-            GX2GetSwapStatus(&swap_count, &flip_count, &last_flip, &last_vsync);
-
-            if (flip_count >= swap_count) {
-                break;
-            }
-
-            if (wait_count >= 10) {
-                /* GPU timed out */
-                break;
-            }
-
-            wait_count++;
-            GX2WaitForVsync();
-        }
-    }
-
-    /* Free the list of render and draw data */
-    WIIU_FreeRenderData(data);
-    WIIU_TextureDoneRendering(data);
 
     return 0;
 }

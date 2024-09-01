@@ -337,11 +337,14 @@ static int WIIU_SDL_SetDrawState(WIIU_RenderData * data, const SDL_RenderCommand
             uint32_t location = shaderGroup->pixelShader->samplerVars[0].location;
             GX2SetPixelTexture(&tdata->texture, location);
             GX2SetPixelSampler(&tdata->sampler, location);
-
-            WIIU_TextureStartRendering(data, tdata);
         }
 
         data->drawState.texture = texture;
+    }
+
+    if (texture) {
+        WIIU_TextureData *tdata = (WIIU_TextureData*) texture->driverdata;
+        WIIU_TextureMarkUsed(data, tdata);
     }
 
     return 0;
@@ -430,17 +433,19 @@ int WIIU_SDL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, vo
 
             case SDL_RENDERCMD_DRAW_POINTS: {
                 GX2RBuffer *vertexBuffer = (GX2RBuffer *) cmd->data.draw.first;
-                WIIU_SDL_SetDrawState(data, cmd);
-                GX2RSetAttributeBuffer(vertexBuffer, 0, vertexBuffer->elemSize, 0);
-                GX2DrawEx(GX2_PRIMITIVE_MODE_POINTS, cmd->data.draw.count, 0, 1);
+                if (WIIU_SDL_SetDrawState(data, cmd) == 0) {
+                    GX2RSetAttributeBuffer(vertexBuffer, 0, vertexBuffer->elemSize, 0);
+                    GX2DrawEx(GX2_PRIMITIVE_MODE_POINTS, cmd->data.draw.count, 0, 1);
+                }
                 break;
             }
 
             case SDL_RENDERCMD_DRAW_LINES: {
                 GX2RBuffer *vertexBuffer = (GX2RBuffer *) cmd->data.draw.first;
-                WIIU_SDL_SetDrawState(data, cmd);
-                GX2RSetAttributeBuffer(vertexBuffer, 0, vertexBuffer->elemSize, 0);
-                GX2DrawEx(GX2_PRIMITIVE_MODE_LINE_STRIP, cmd->data.draw.count, 0, 1);
+                if (WIIU_SDL_SetDrawState(data, cmd) == 0) {
+                    GX2RSetAttributeBuffer(vertexBuffer, 0, vertexBuffer->elemSize, 0);
+                    GX2DrawEx(GX2_PRIMITIVE_MODE_LINE_STRIP, cmd->data.draw.count, 0, 1);
+                }
                 break;
             }
 
@@ -452,9 +457,10 @@ int WIIU_SDL_RunCommandQueue(SDL_Renderer * renderer, SDL_RenderCommand *cmd, vo
 
             case SDL_RENDERCMD_GEOMETRY: {
                 GX2RBuffer *vertexBuffer = (GX2RBuffer *) cmd->data.draw.first;
-                WIIU_SDL_SetDrawState(data, cmd);
-                GX2RSetAttributeBuffer(vertexBuffer, 0, vertexBuffer->elemSize, 0);
-                GX2DrawEx(GX2_PRIMITIVE_MODE_TRIANGLES, cmd->data.draw.count, 0, 1);
+                if (WIIU_SDL_SetDrawState(data, cmd) == 0) {
+                    GX2RSetAttributeBuffer(vertexBuffer, 0, vertexBuffer->elemSize, 0);
+                    GX2DrawEx(GX2_PRIMITIVE_MODE_TRIANGLES, cmd->data.draw.count, 0, 1);
+                }
             }
 
             case SDL_RENDERCMD_NO_OP:
