@@ -45,7 +45,6 @@
 /* Driver internal data structures */
 typedef struct WIIU_PixFmt WIIU_PixFmt;
 typedef struct WIIU_RenderAllocData WIIU_RenderAllocData;
-typedef struct WIIU_TextureDrawData WIIU_TextureDrawData;
 typedef struct WIIU_DrawState WIIU_DrawState;
 typedef struct WIIU_RenderData WIIU_RenderData;
 typedef struct WIIU_TextureData WIIU_TextureData;
@@ -58,14 +57,8 @@ struct WIIU_PixFmt
 
 struct WIIU_RenderAllocData
 {
-    void *next;
+    WIIU_RenderAllocData *next;
     GX2RBuffer buffer;
-};
-
-struct WIIU_TextureDrawData
-{
-    void *next;
-    WIIU_TextureData *texdata;
 };
 
 struct WIIU_DrawState
@@ -90,8 +83,10 @@ struct WIIU_DrawState
 struct WIIU_RenderData
 {
     GX2ContextState *ctx;
-    WIIU_RenderAllocData *listfree;
-    WIIU_TextureDrawData *listdraw;
+    int actlist;
+    WIIU_RenderAllocData *listfree[2];
+    OSTime currFrameTimestamp;
+    OSTime lastFrameTimestamp;
     SDL_Texture windowTex;
     WIIU_DrawState drawState;
 };
@@ -101,7 +96,7 @@ struct WIIU_TextureData
     GX2Sampler sampler;
     GX2Texture texture;
     GX2ColorBuffer cbuf;
-    SDL_bool isRendering;
+    OSTime timestamp;
 };
 
 /* Ask texture driver to allocate texture's memory from MEM1 */
@@ -141,62 +136,14 @@ void WIIU_SDL_CreateWindowTex(SDL_Renderer * renderer, SDL_Window * window);
 void WIIU_SDL_DestroyWindowTex(SDL_Renderer * renderer, SDL_Window * window);
 
 /* Utility/helper functions */
-static inline GX2RBuffer * WIIU_AllocRenderData(WIIU_RenderData *r, GX2RBuffer buffer)
-{
-    WIIU_RenderAllocData *rdata = SDL_malloc(sizeof(WIIU_RenderAllocData));
+GX2RBuffer * WIIU_AllocRenderData(WIIU_RenderData *r, GX2RBuffer buffer);
+void WIIU_FreeRenderData(WIIU_RenderData *r, int list);
 
-    rdata->buffer = buffer;
-    if (!GX2RCreateBuffer(&rdata->buffer)) {
-        SDL_free(rdata);
-        return 0;
-    }
+void WIIU_TextureMarkUsed(WIIU_RenderData *r, WIIU_TextureData *t);
+SDL_bool WIIU_TextureInUse(WIIU_RenderData *r, WIIU_TextureData *t);
+SDL_bool WIIU_TextureWaitDone(WIIU_RenderData *r, WIIU_TextureData *t);
 
-    rdata->next = r->listfree;
-    r->listfree = rdata;
-    return &rdata->buffer;
-}
-
-static inline void WIIU_FreeRenderData(WIIU_RenderData *r)
-{
-    while (r->listfree) {
-        WIIU_RenderAllocData *ptr = r->listfree;
-        r->listfree = r->listfree->next;
-        GX2RDestroyBufferEx(&ptr->buffer, 0);
-        SDL_free(ptr);
-    }
-}
-
-static inline void WIIU_TextureStartRendering(WIIU_RenderData *r, WIIU_TextureData *t)
-{
-    WIIU_TextureDrawData *d = SDL_malloc(sizeof(WIIU_TextureDrawData));
-    t->isRendering = SDL_TRUE;
-    d->texdata = t;
-    d->next = r->listdraw;
-    r->listdraw = d;
-}
-
-static inline void WIIU_TextureDoneRendering(WIIU_RenderData *r)
-{
-    while (r->listdraw) {
-        WIIU_TextureDrawData *d = r->listdraw;
-        r->listdraw = r->listdraw->next;
-        d->texdata->isRendering = SDL_FALSE;
-        SDL_free(d);
-    }
-}
-
-/* If the texture is currently being rendered and we change the content
-   before the rendering is finished, the GPU will end up partially drawing
-   the new data, so we wait for the GPU to finish rendering before
-   updating the texture */
-static inline void WIIU_TextureCheckWaitRendering(WIIU_RenderData *r, WIIU_TextureData *t)
-{
-    if (t->isRendering) {
-        GX2DrawDone();
-        WIIU_TextureDoneRendering(r);
-        WIIU_FreeRenderData(r);
-    }
-}
+void WIIU_FrameDone(WIIU_RenderData *r);
 
 static inline SDL_Texture * WIIU_GetRenderTarget(SDL_Renderer* renderer)
 {

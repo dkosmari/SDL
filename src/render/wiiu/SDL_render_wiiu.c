@@ -29,6 +29,7 @@
 
 #include <gx2/event.h>
 #include <gx2/registers.h>
+#include <gx2/state.h>
 #include <gx2r/surface.h>
 
 #include <malloc.h>
@@ -78,7 +79,8 @@ SDL_Renderer *WIIU_SDL_CreateRenderer(SDL_Window * window, Uint32 flags)
     WIIU_SDL_CreateShaders();
 
     /* List of attibutes to free after render */
-    data->listfree = NULL;
+    data->listfree[0] = NULL;
+    data->listfree[1] = NULL;
 
     /* Setup line and point size */
     GX2SetLineWidth(1.0f);
@@ -191,8 +193,10 @@ int WIIU_SDL_SetRenderTarget(SDL_Renderer * renderer, SDL_Texture * texture)
     /* make sure we're using the correct renderer ctx */
     GX2SetContextState(data->ctx);
 
-    /* Wait for the texture rendering to finish */
-    WIIU_TextureCheckWaitRendering(data, tdata);
+    /* Wait for the texture rendering to finish if it is still in use by the GPU */
+    if (WIIU_TextureInUse(data, tdata)) {
+        WIIU_TextureWaitDone(data, tdata);
+    }
 
     /* Update context state */
     GX2SetColorBuffer(&tdata->cbuf, GX2_RENDER_TARGET_0);
@@ -209,8 +213,9 @@ void WIIU_SDL_DestroyRenderer(SDL_Renderer * renderer)
         GX2DrawDone();
     }
 
-    WIIU_FreeRenderData(data);
-    WIIU_TextureDoneRendering(data);
+    /* Free both render data queues */
+    WIIU_FreeRenderData(data, 0);
+    WIIU_FreeRenderData(data, 1);
 
     free(data->ctx);
 
@@ -249,6 +254,79 @@ int WIIU_SDL_RenderReadPixels(SDL_Renderer * renderer, const SDL_Rect * rect,
     return ret;
 }
 
+GX2RBuffer * WIIU_AllocRenderData(WIIU_RenderData *r, GX2RBuffer buffer)
+{
+    WIIU_RenderAllocData *rdata = SDL_malloc(sizeof(WIIU_RenderAllocData));
+
+    rdata->buffer = buffer;
+    if (!GX2RCreateBuffer(&rdata->buffer)) {
+        SDL_free(rdata);
+        return 0;
+    }
+
+    rdata->next = r->listfree[r->actlist];
+    r->listfree[r->actlist] = rdata;
+    return &rdata->buffer;
+}
+
+void WIIU_FreeRenderData(WIIU_RenderData *r, int list)
+{
+    while (r->listfree[list]) {
+        WIIU_RenderAllocData *ptr = r->listfree[list];
+        r->listfree[list] = ptr->next;
+        GX2RDestroyBufferEx(&ptr->buffer, 0);
+        SDL_free(ptr);
+    }
+}
+
+void WIIU_TextureMarkUsed(WIIU_RenderData *r, WIIU_TextureData *t)
+{
+    /* Since GX2GetLastSubmittedTimeStamp might not flush and won't return the timestamp of the
+       batch at which the texture has been used, we do +1 to act as "whichever timestamp will be done
+       next". Only adding +1 is okay, since between the point markUsed is called and the actual draw
+       submit call happenning, no other draw should be submitted. */
+    t->timestamp = GX2GetLastSubmittedTimeStamp() + 1;
+}
+
+SDL_bool WIIU_TextureInUse(WIIU_RenderData *r, WIIU_TextureData *t)
+{
+    /* If the last retired time stamp of the batch is less than the buffer timestamp,
+       the GPU might have not processed this buffer yet */
+    return GX2GetRetiredTimeStamp() < t->timestamp;
+}
+
+SDL_bool WIIU_TextureWaitDone(WIIU_RenderData *r, WIIU_TextureData *t)
+{
+    /* If the buffer has never been used, don't do anything */
+    if (t->timestamp == 0) {
+        return true;
+    }
+
+    /* Flushing here is important otherwise we might wait on a buffer that
+       hasn't even been submitted to the GPU yet */
+    GX2Flush();
+
+    /* Wait on the buffers timestamp */
+    return GX2WaitTimeStamp(t->timestamp);
+}
+
+void WIIU_FrameDone(WIIU_RenderData *r)
+{
+    /* This function will be called once all GPU calls of a frame have been submitted..
+       We'll save the last submitted frame timestamp and wait to make sure the previous
+       frame is fully drawn. Then we can free its buffers. */
+    r->lastFrameTimestamp = r->currFrameTimestamp;
+    r->currFrameTimestamp = GX2GetLastSubmittedTimeStamp();
+
+    /* Ensure the previous frame has been rendered completely */
+    if (GX2GetRetiredTimeStamp() < r->lastFrameTimestamp) {
+        GX2WaitTimeStamp(r->lastFrameTimestamp);
+    }
+
+    /* Free inactive render data, now that we're sure the GPU is no longer using it */
+    WIIU_FreeRenderData(r, !r->actlist);
+    r->actlist = !r->actlist;
+}
 
 SDL_RenderDriver WIIU_RenderDriver =
 {
