@@ -497,8 +497,8 @@ static SDL_JoystickGUID OGC_JoystickGetDeviceGUID(int device_index)
     int index = device_index_to_joypad_index(device_index);
     Uint16 bus, product, version;
     Uint8 driver_signature, driver_data;
-    const char *name;
-
+    const char *product_name;
+    static const char *vendor_name="Nintendo";
     /* We invent our own product IDs, to tell our joysticks apart.
      * Since we want the gamepads to appear with the numeric ID in their
      * name, we make them unique by assigning a different product depending on
@@ -514,9 +514,9 @@ static SDL_JoystickGUID OGC_JoystickGetDeviceGUID(int device_index)
     driver_signature = 0;
     driver_data = 0;
 
-    name = OGC_JoystickGetDeviceName(device_index);
+    product_name = OGC_JoystickGetDeviceName(device_index);
     return SDL_CreateJoystickGUID(bus, USB_VENDOR_NINTENDO, product, version,
-                                  name, driver_signature, driver_data);
+                                 vendor_name, product_name, driver_signature, driver_data);
 }
 
 static SDL_JoystickID OGC_JoystickGetDeviceInstanceID(int device_index)
