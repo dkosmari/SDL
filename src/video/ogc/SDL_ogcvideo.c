@@ -42,6 +42,8 @@
 #include <ogc/system.h>
 #include <ogc/video.h>
 
+#include <opengx.h>
+
 #define DEFAULT_FIFO_SIZE 256 * 1024
 
 // Inverse of the VI_TVMODE macro
@@ -342,6 +344,8 @@ void OGC_video_flip(_THIS, bool vsync)
 {
     SDL_VideoData *videodata = _this->driverdata;
     void *xfb = OGC_video_get_xfb(_this);
+
+    if (ogx_prepare_swap_buffers() < 0) return;
 
 #ifdef __wii__
     OGC_draw_cursor(_this);
