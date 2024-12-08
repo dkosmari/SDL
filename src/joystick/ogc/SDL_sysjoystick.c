@@ -119,6 +119,12 @@ static const int __jspad_enabled = 1;
 static const int __numgcjoysticks = 4;
 
 #ifdef __wii__
+#define GC_JOYSTICK_FROM_INDEX(index) (index - num_wii_joysticks)
+#else
+#define GC_JOYSTICK_FROM_INDEX(index) (index)
+#endif
+
+#ifdef __wii__
 static const int __jswpad_enabled = 1;
 static const int __numwiijoysticks = 4;
 static int split_joysticks = 0;
@@ -182,12 +188,6 @@ static const u32 sdl_buttons_classic[] =
 };
 #define SDL_WII_NUM_BUTTONS_CLASSIC \
 	(sizeof(sdl_buttons_classic) / sizeof(sdl_buttons_classic[0]))
-
-#ifdef __wii__
-#define GC_JOYSTICK_FROM_INDEX(index) (index - num_wii_joysticks)
-#else
-#define GC_JOYSTICK_FROM_INDEX(index) (index)
-#endif
 
 /* Helpers to separate nunchuk vs classic buttons which share the
  * same scan codes. In particular, up on the classic controller is
