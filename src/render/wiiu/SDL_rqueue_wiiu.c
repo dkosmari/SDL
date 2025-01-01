@@ -60,6 +60,12 @@ int WIIU_SDL_QueueDrawPoints(SDL_Renderer * renderer, SDL_RenderCommand * cmd, c
     SDL_VertexSolid *vertices;
     GX2RBuffer *vertexBuffer;
     SDL_Color color;
+
+    // discard empty draws or GX2 will crash
+    if (count < 1) {
+        return -1;
+    }
+
     color.r = cmd->data.draw.r;
     color.g = cmd->data.draw.g;
     color.b = cmd->data.draw.b;
@@ -99,6 +105,12 @@ int WIIU_SDL_QueueDrawLines(SDL_Renderer * renderer, SDL_RenderCommand * cmd, co
     SDL_VertexSolid *vertices;
     GX2RBuffer *vertexBuffer;
     SDL_Color color;
+
+    // discard empty draws or GX2 will crash
+    if (count < 2) {
+        return -1;
+    }
+
     color.r = cmd->data.draw.r;
     color.g = cmd->data.draw.g;
     color.b = cmd->data.draw.b;
