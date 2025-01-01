@@ -457,6 +457,7 @@ static void WIIU_JoystickUpdate(SDL_Joystick *joystick)
 			SDL_PrivateJoystickRemoved(joystick->instance_id);
 			/* Unlink Gamepad, device_index, instance_id */
 			WIIU_RemoveDevice(WIIU_DEVICE_GAMEPAD);
+			return;
 		} else if (error != VPAD_READ_SUCCESS) {
 			return;
 		}
