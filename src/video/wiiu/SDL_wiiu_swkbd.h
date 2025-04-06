@@ -25,8 +25,8 @@
 #include "../../SDL_internal.h"
 #include "../SDL_sysvideo.h"
 
-#include <vpad/input.h>
 #include <padscore/kpad.h>
+#include <vpad/input.h>
 
 #if SDL_VIDEO_DRIVER_WIIU
 
@@ -44,8 +44,8 @@ void WIIU_SWKBD_Calc(void);
 void WIIU_SWKBD_Draw(SDL_Window *window);
 
 SDL_bool WIIU_SWKBD_HasScreenKeyboardSupport(_THIS);
-void     WIIU_SWKBD_ShowScreenKeyboard(_THIS, SDL_Window *window);
-void     WIIU_SWKBD_HideScreenKeyboard(_THIS, SDL_Window *window);
+void WIIU_SWKBD_ShowScreenKeyboard(_THIS, SDL_Window *window);
+void WIIU_SWKBD_HideScreenKeyboard(_THIS, SDL_Window *window);
 SDL_bool WIIU_SWKBD_IsScreenKeyboardShown(_THIS, SDL_Window *window);
 
 #ifdef __cplusplus
