@@ -612,6 +612,53 @@ extern DECLSPEC int SDLCALL SDL_GDKGetTaskQueue(XTaskQueueHandle * outTaskQueue)
 
 #endif
 
+/* Platform specific functions for Wii U */
+#if defined(__WIIU__)
+typedef enum SDL_WiiUSysWMEventType {
+    SDL_WIIU_SYSWM_SWKBD_OK_EVENT = 1,
+    SDL_WIIU_SYSWM_SWKBD_CANCEL_EVENT
+} SDL_WiiUSysWMEventType;
+
+/**
+ * Set a pointer to a nn::swkbd::CreateArg object that will be used to create the swkbd.
+ *
+ * \param createArg a pointer to a persistent nn::swkbd::CreateArg object, or NULL to use the default.
+ */
+extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDCreateArg(void * createArg);
+
+/**
+ * Set a pointer to a nn::swkbd::AppearArg object that will be used every time
+ * the swkbd is shown.
+ *
+ * \param appearArg a pointer to a persistent nn::swkbd::AppearArg object, or NULL to use the default.
+ */
+extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDAppearArg(void * appearArg);
+
+// TODO: write docs
+extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDKeyboardMode(int mode);
+
+// TODO: write docs
+extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDOKLabel(const char * label);
+
+// TODO: write docs
+extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDShowWordSuggestions(SDL_bool show);
+
+// TODO: write docs
+extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDInitialText(const char * text);
+
+// TODO: write docs
+extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDHintText(const char * text);
+
+// TODO: write docs
+extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDPasswordMode(int mode);
+
+// TODO: write docs
+extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDHighlightInitialText(SDL_bool highlight);
+
+// TODO: write docs
+extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDShowCopyPasteButtons(SDL_bool show);
+#endif /* Wii U */
+
 /* Ends C function definitions when using C++ */
 #ifdef __cplusplus
 }
