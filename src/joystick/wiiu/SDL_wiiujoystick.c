@@ -37,6 +37,7 @@
 #include "SDL_log.h"
 #include "SDL_assert.h"
 #include "SDL_events.h"
+#include "SDL_system.h"
 
 #include "SDL_wiiujoystick.h"
 #include "../../video/SDL_sysvideo.h"
@@ -481,7 +482,7 @@ static void WIIU_JoystickUpdate(SDL_Joystick *joystick)
 		/* touchscreen */
 		VPADGetTPCalibratedPoint(VPAD_CHAN_0, &vpad.tpNormal, &vpad.tpNormal);
 
-		if (WIIU_SWKBD_ConsumeVPAD(&vpad)) {
+		if (SDL_WiiUSetSWKBDVPAD(&vpad)) {
 			/* Do not generate SDL events when the swkbd is consuming the input. */
 			return;
 		}
@@ -563,7 +564,7 @@ static void WIIU_JoystickUpdate(SDL_Joystick *joystick)
 		if (read != 1 || err != KPAD_ERROR_OK)
 			return;
 
-		if (WIIU_SWKBD_ConsumeKPAD(WIIU_WPAD_CHAN(wiiu_device), &kpad)) {
+		if (SDL_WiiUSetSWKBDKPAD(WIIU_WPAD_CHAN(wiiu_device), &kpad)) {
 			/* Do not generate SDL events when the swkbd is consuming the input. */
 			return;
 		}

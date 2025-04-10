@@ -37,8 +37,6 @@ extern "C" {
 void WIIU_SWKBD_Initialize(void);
 void WIIU_SWKBD_Finalize(void);
 
-SDL_bool WIIU_SWKBD_ConsumeVPAD(const VPADStatus *vpad);
-SDL_bool WIIU_SWKBD_ConsumeKPAD(KPADChan channel, const KPADStatus *kpad);
 void WIIU_SWKBD_Calc(void);
 
 void WIIU_SWKBD_Draw(SDL_Window *window);
