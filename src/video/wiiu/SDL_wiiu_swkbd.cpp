@@ -139,7 +139,6 @@ namespace
 
         namespace create
         {
-
             // We cannot call nn::swkbd functions unless a keyboard is created, so we keep
             // track of it here.
             bool created = false;
@@ -149,6 +148,24 @@ namespace
             vector<char> workMemory;
             std::optional<nn::swkbd::RegionType> region; // store region used to create keyboard
 
+            void
+            cleanup()
+            {
+                /*
+                 * Free all memory allocated for the swkbd creation.
+                 *
+                 * Normally we'd reuse the memory in case we need to re-create it in
+                 * another region. But if swkbd is manually disabled, we better actually
+                 * free up all memory.
+                 *
+                 * Only call this after WIIU_SWKBD_Finalize().
+                 */
+                region.reset();
+                fsClient.reset();
+                workMemory.clear();
+                workMemory.shrink_to_fit();
+            }
+
         } // namespace create
 
         namespace appear
@@ -157,13 +174,12 @@ namespace
             const nn::swkbd::AppearArg *customArg = nullptr;
             // Keep track of wich window has the swkbd.
             SDL_Window *window = nullptr;
+
             // keyboard config options
             nn::swkbd::KeyboardMode keyboardMode = nn::swkbd::KeyboardMode::Full;
             u16string okText;
             bool showWordSuggestions = true;
-
             // TODO: control disabled inputs, needs to fix nn::swkbd::ConfigArg
-
             // input form options
             u16string initialText;
             u16string hintText;
@@ -172,7 +188,24 @@ namespace
             bool showCopyPasteButtons = false;
             bool drawWiiPointer = true;
 
+            void
+            reset()
+            {
+                // Reset all customization after the keyboard is shown.
+                keyboardMode = nn::swkbd::KeyboardMode::Full;
+                okText.clear();
+                showWordSuggestions = true;
+                initialText.clear();
+                hintText.clear();
+                passwordMode = nn::swkbd::PasswordMode::Clear;
+                highlightInitialText = false;
+                showCopyPasteButtons = false;
+                drawWiiPointer = true;
+            }
+
         } // namespace appear
+
+        bool enabled = true;
 
         string swkbdLocale;
 
@@ -181,7 +214,8 @@ namespace
         VPADStatus vpad;
         std::array<KPADStatus, 4> kpad;
 
-        SDL_SysWMmsg wmMsg;
+        SDL_SysWMmsg wmMsgStart;
+        SDL_SysWMmsg wmMsgFinish;
 
         // return language, country pair
         std::pair<string, string>
@@ -494,6 +528,9 @@ void WIIU_SWKBD_Initialize(void)
     if (detail::create::created)
         return;
 
+    if (!detail::enabled)
+        return;
+
     try {
         if (!detail::fsLib)
             detail::fsLib.emplace();
@@ -562,6 +599,9 @@ void WIIU_SWKBD_Calc(void)
     if (!detail::create::created)
         return;
 
+    if (!detail::enabled)
+        return;
+
     nn::swkbd::Calc(detail::controllerInfo);
     detail::controllerInfo = {};
 
@@ -579,6 +619,12 @@ void WIIU_SWKBD_Calc(void)
 
     // Check if user confirmed input.
     if (nn::swkbd::IsDecideOkButton(nullptr)) {
+        // Send an event before we send out the string.
+        SDL_VERSION(&detail::wmMsgStart.version);
+        detail::wmMsgStart.subsystem = SDL_SYSWM_WIIU;
+        detail::wmMsgStart.msg.wiiu.event = SDL_WIIU_SYSWM_SWKBD_OK_START_EVENT;
+        SDL_SendSysWMEvent(&detail::wmMsgStart);
+
         auto str16 = nn::swkbd::GetInputFormString();
         if (str16) {
             try {
@@ -593,27 +639,28 @@ void WIIU_SWKBD_Calc(void)
 
         WIIU_SWKBD_HideScreenKeyboard(nullptr, nullptr);
 
-        // notify application
-        SDL_VERSION(&detail::wmMsg.version);
-        detail::wmMsg.subsystem = SDL_SYSWM_WIIU;
-        detail::wmMsg.msg.wiiu.event = SDL_WIIU_SYSWM_SWKBD_OK_EVENT;
-        SDL_SendSysWMEvent(&detail::wmMsg);
+        // Send an event after the string.
+        SDL_VERSION(&detail::wmMsgFinish.version);
+        detail::wmMsgFinish.subsystem = SDL_SYSWM_WIIU;
+        detail::wmMsgFinish.msg.wiiu.event = SDL_WIIU_SYSWM_SWKBD_OK_FINISH_EVENT;
+        SDL_SendSysWMEvent(&detail::wmMsgFinish);
     }
 
     if (nn::swkbd::IsDecideCancelButton(nullptr)) {
         WIIU_SWKBD_HideScreenKeyboard(nullptr, nullptr);
-
-        // notify application
-        SDL_VERSION(&detail::wmMsg.version);
-        detail::wmMsg.subsystem = SDL_SYSWM_WIIU;
-        detail::wmMsg.msg.wiiu.event = SDL_WIIU_SYSWM_SWKBD_CANCEL_EVENT;
-        SDL_SendSysWMEvent(&detail::wmMsg);
+        SDL_VERSION(&detail::wmMsgFinish.version);
+        detail::wmMsgFinish.subsystem = SDL_SYSWM_WIIU;
+        detail::wmMsgFinish.msg.wiiu.event = SDL_WIIU_SYSWM_SWKBD_CANCEL_EVENT;
+        SDL_SendSysWMEvent(&detail::wmMsgFinish);
     }
 }
 
 void WIIU_SWKBD_Draw(SDL_Window *window)
 {
     if (window != detail::appear::window)
+        return;
+
+    if (!detail::enabled)
         return;
 
     nn::swkbd::State state = nn::swkbd::GetStateInputForm();
@@ -628,11 +675,16 @@ void WIIU_SWKBD_Draw(SDL_Window *window)
 
 SDL_bool WIIU_SWKBD_HasScreenKeyboardSupport(_THIS)
 {
+    if (!detail::enabled)
+        return SDL_FALSE;
     return SDL_TRUE;
 }
 
 void WIIU_SWKBD_ShowScreenKeyboard(_THIS, SDL_Window *window)
 {
+    if (!detail::enabled)
+        return;
+
     WIIU_SWKBD_Initialize();
 
     if (!detail::appear::window)
@@ -692,17 +744,7 @@ void WIIU_SWKBD_ShowScreenKeyboard(_THIS, SDL_Window *window)
         arg.keyboardArg.configArg.controllerType = nn::swkbd::ControllerType::DrcGamepad;
 
     nn::swkbd::AppearInputForm(arg);
-
-    // Reset all customization
-    detail::appear::keyboardMode = nn::swkbd::KeyboardMode::Full;
-    detail::appear::okText.clear();
-    detail::appear::showWordSuggestions = true;
-    detail::appear::initialText.clear();
-    detail::appear::hintText.clear();
-    detail::appear::passwordMode = nn::swkbd::PasswordMode::Clear;
-    detail::appear::highlightInitialText = false;
-    detail::appear::showCopyPasteButtons = false;
-    detail::appear::drawWiiPointer = true;
+    detail::appear::reset();
 }
 
 void WIIU_SWKBD_HideScreenKeyboard(_THIS, SDL_Window *)
@@ -726,6 +768,18 @@ SDL_bool WIIU_SWKBD_IsScreenKeyboardShown(_THIS, SDL_Window *window)
         return SDL_TRUE;
 
     return SDL_FALSE;
+}
+
+void SDL_WiiUSetSWKBDEnabled(SDL_bool enabled)
+{
+    if (detail::enabled != !!enabled) {
+        detail::enabled = enabled;
+        if (!detail::enabled) {
+            // If application is turning swkbd off, we better free up all memory too.
+            WIIU_SWKBD_Finalize();
+            detail::create::cleanup();
+        }
+    }
 }
 
 void SDL_WiiUSetSWKBDCreateArg(void *arg)

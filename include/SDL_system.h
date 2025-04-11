@@ -615,9 +615,23 @@ extern DECLSPEC int SDLCALL SDL_GDKGetTaskQueue(XTaskQueueHandle * outTaskQueue)
 /* Platform specific functions for Wii U */
 #if defined(__WIIU__)
 typedef enum SDL_WiiUSysWMEventType {
-    SDL_WIIU_SYSWM_SWKBD_OK_EVENT = 1,
+    /** Sent before any text input event. */
+    SDL_WIIU_SYSWM_SWKBD_OK_START_EVENT = 1,
+    /** Sent after all text input events. */
+    SDL_WIIU_SYSWM_SWKBD_OK_FINISH_EVENT,
+    /** Sent after the swkbd was canceled. */
     SDL_WIIU_SYSWM_SWKBD_CANCEL_EVENT
 } SDL_WiiUSysWMEventType;
+
+/**
+ * Disable the swkbd.
+ *
+ * Use this function if you only want text input from a physical USB keyboard.
+ *
+ * \param enabled `SDL_FALSE` if you do not want the swkbd to show up after calling
+ * `SDL_StartTextInput()`.
+ */
+extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDEnabled(SDL_bool enabled);
 
 /**
  * Sets a nn::swkbd::CreateArg object that will be used to create the swkbd.
