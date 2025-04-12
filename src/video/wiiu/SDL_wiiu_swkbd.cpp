@@ -637,13 +637,13 @@ void WIIU_SWKBD_Calc(void)
             }
         }
 
-        WIIU_SWKBD_HideScreenKeyboard(nullptr, nullptr);
-
         // Send an event after the string.
         SDL_VERSION(&detail::wmMsgFinish.version);
         detail::wmMsgFinish.subsystem = SDL_SYSWM_WIIU;
         detail::wmMsgFinish.msg.wiiu.event = SDL_WIIU_SYSWM_SWKBD_OK_FINISH_EVENT;
         SDL_SendSysWMEvent(&detail::wmMsgFinish);
+
+        // WIIU_SWKBD_HideScreenKeyboard(nullptr, nullptr);
     }
 
     if (nn::swkbd::IsDecideCancelButton(nullptr)) {
@@ -652,6 +652,8 @@ void WIIU_SWKBD_Calc(void)
         detail::wmMsgFinish.subsystem = SDL_SYSWM_WIIU;
         detail::wmMsgFinish.msg.wiiu.event = SDL_WIIU_SYSWM_SWKBD_CANCEL_EVENT;
         SDL_SendSysWMEvent(&detail::wmMsgFinish);
+
+        // WIIU_SWKBD_HideScreenKeyboard(nullptr, nullptr);
     }
 }
 
@@ -752,7 +754,7 @@ void WIIU_SWKBD_HideScreenKeyboard(_THIS, SDL_Window *)
     if (!detail::create::created)
         return;
     nn::swkbd::DisappearInputForm();
-    detail::appear::window = nullptr;
+    // detail::appear::window = nullptr;
 }
 
 SDL_bool WIIU_SWKBD_IsScreenKeyboardShown(_THIS, SDL_Window *window)
@@ -918,7 +920,7 @@ SDL_bool SDL_WiiUSetSWKBDVPAD(const void *vpad)
     if (state != nn::swkbd::State::Visible)
         return SDL_FALSE;
 
-    // printf("swkbd is consuming vpad input\n");
+    // printf("swkbd is consuming vpad input, window=%p\n", detail::appear::window);
     detail::vpad = *reinterpret_cast<const VPADStatus *>(vpad);
     detail::controllerInfo.vpad = &detail::vpad;
     return SDL_TRUE;
