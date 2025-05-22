@@ -172,6 +172,7 @@ namespace
         {
 
             const nn::swkbd::AppearArg *customArg = nullptr;
+            nn::swkbd::AppearArg theArg;
             // Keep track of wich window has the swkbd.
             SDL_Window *window = nullptr;
 
@@ -343,7 +344,7 @@ namespace
             return {};
         }
 
-        uint32_t
+        Uint32
         to_keyboard_layout(LanguageType language,
                            RegionType region)
         {
@@ -392,7 +393,7 @@ namespace
             }
         }
 
-        uint32_t
+        Uint32
         read_system_config_u32(const char *key) noexcept
         {
             UCHandle handle = UCOpen();
@@ -692,10 +693,12 @@ void WIIU_SWKBD_ShowScreenKeyboard(_THIS, SDL_Window *window)
     if (!detail::appear::window)
         detail::appear::window = window;
 
-    nn::swkbd::AppearArg arg;
+    const nn::swkbd::AppearArg *parg;
     if (detail::appear::customArg) {
-        arg = *detail::appear::customArg;
+        parg = detail::appear::customArg;
     } else {
+        nn::swkbd::AppearArg &arg = detail::appear::theArg;
+        arg = nn::swkbd::AppearArg{}; // reset all values to default
         // Set language
         auto [language, country] = detail::parse_locale(detail::swkbdLocale);
         if (auto lang = detail::to_language(language, country))
@@ -738,14 +741,16 @@ void WIIU_SWKBD_ShowScreenKeyboard(_THIS, SDL_Window *window)
 
         // Set show copy paste buttons
         arg.inputFormArg.showCopyPasteButtons = detail::appear::showCopyPasteButtons;
+
+        if (window->flags & SDL_WINDOW_WIIU_TV_ONLY)
+            arg.keyboardArg.configArg.controllerType = nn::swkbd::ControllerType::WiiRemote0;
+        else
+            arg.keyboardArg.configArg.controllerType = nn::swkbd::ControllerType::DrcGamepad;
+
+        parg = &arg;
     }
 
-    if (window->flags & SDL_WINDOW_WIIU_TV_ONLY)
-        arg.keyboardArg.configArg.controllerType = nn::swkbd::ControllerType::WiiRemote0;
-    else
-        arg.keyboardArg.configArg.controllerType = nn::swkbd::ControllerType::DrcGamepad;
-
-    nn::swkbd::AppearInputForm(arg);
+    nn::swkbd::AppearInputForm(*parg);
     detail::appear::reset();
 }
 
@@ -791,7 +796,7 @@ void SDL_WiiUSetSWKBDCreateArg(void *arg)
     WIIU_SWKBD_Finalize();
 }
 
-void SDL_WiiUSetSWKBDAppearArg(void *arg)
+void SDL_WiiUSetSWKBDAppearArg(const void *arg)
 {
     detail::appear::customArg = reinterpret_cast<const nn::swkbd::AppearArg *>(arg);
 }

@@ -634,12 +634,12 @@ typedef enum SDL_WiiUSysWMEventType {
 extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDEnabled(SDL_bool enabled);
 
 /**
- * Sets a nn::swkbd::CreateArg object that will be used to create the swkbd.
+ * Sets a `nn::swkbd::CreateArg` object that will be used to create the swkbd.
  * 
  * You don't need to set `arg->fsClient` nor `arg->workMemory`, these will be
  * allocated if they are `NULL`, when the swkbd is first shown.
  *
- * \param arg Pointer to a persistent nn::swkbd::CreateArg object, or `NULL` to use the
+ * \param arg Pointer to a persistent `nn::swkbd::CreateArg` object, or `NULL` to use the
  * default.
  *
  * \note
@@ -648,22 +648,27 @@ extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDEnabled(SDL_bool enabled);
 extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDCreateArg(void * arg);
 
 /**
- * Sets a nn::swkbd::AppearArg object that will be used every time the swkbd is shown.
+ * Sets a `nn::swkbd::AppearArg` object that will be used every time the swkbd is shown.
+ * You don't have to call this function again if you update the argument's content.
  *
- * \param arg Pointer to a persistent nn::swkbd::AppearArg object, or `NULL` to use the
+ * \param arg Pointer to a persistent `nn::swkbd::AppearArg` object, or `NULL` to use the
  * default.
  *
+ * \note
+ * When a `nn::swkbd::AppearArg` argument is used, all related customization options
+ * are ignored.
+ *
+ * \sa SDL_WiiUSetSWKBDHighlightInitialText
+ * \sa SDL_WiiUSetSWKBDHintText
+ * \sa SDL_WiiUSetSWKBDInitialText
+ * \sa SDL_WiiUSetSWKBDInitialText
  * \sa SDL_WiiUSetSWKBDKeyboardMode
  * \sa SDL_WiiUSetSWKBDOKLabel
- * \sa SDL_WiiUSetSWKBDShowWordSuggestions
- * \sa SDL_WiiUSetSWKBDInitialText
- * \sa SDL_WiiUSetSWKBDInitialText
- * \sa SDL_WiiUSetSWKBDHintText
  * \sa SDL_WiiUSetSWKBDPasswordMode
- * \sa SDL_WiiUSetSWKBDHighlightInitialText
  * \sa SDL_WiiUSetSWKBDShowCopyPasteButtons
+ * \sa SDL_WiiUSetSWKBDShowWordSuggestions
  */
-extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDAppearArg(void * arg);
+extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDAppearArg(const void * arg);
 
 /**
  * Select the swkbd keyboard mode.

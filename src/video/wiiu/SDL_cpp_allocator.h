@@ -23,7 +23,7 @@
 #define SDL_cpp_allocator_h
 
 #include <cstdlib>
-#include <stdexcept>
+#include <new>
 #include <type_traits>
 
 #include "SDL_stdinc.h"

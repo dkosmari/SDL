@@ -2930,9 +2930,7 @@ elseif(WIIU)
     set(HAVE_SDL_VIDEO TRUE)
   endif()
 
-  list(APPEND EXTRA_LIBS
-      wut
-    )
+  list(APPEND EXTRA_LIBS wut stdc++)
 endif()
 
 if(HAVE_VULKAN AND NOT SDL_LOADSO)
