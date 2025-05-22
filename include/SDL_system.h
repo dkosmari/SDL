@@ -661,7 +661,6 @@ extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDCreateArg(void * arg);
  * \sa SDL_WiiUSetSWKBDHighlightInitialText
  * \sa SDL_WiiUSetSWKBDHintText
  * \sa SDL_WiiUSetSWKBDInitialText
- * \sa SDL_WiiUSetSWKBDInitialText
  * \sa SDL_WiiUSetSWKBDKeyboardMode
  * \sa SDL_WiiUSetSWKBDOKLabel
  * \sa SDL_WiiUSetSWKBDPasswordMode
