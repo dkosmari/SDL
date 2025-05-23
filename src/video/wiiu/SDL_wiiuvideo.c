@@ -344,7 +344,7 @@ static void WIIU_PumpEvents(_THIS)
 	}
 
 	SDL_WIIU_PumpKeyboardEvents(_this);
-        WIIU_SWKBD_Calc();
+	WIIU_SWKBD_Calc();
 }
 
 static void WIIU_DeleteDevice(SDL_VideoDevice *device)
