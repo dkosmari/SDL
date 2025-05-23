@@ -38,6 +38,7 @@
 #include "SDL_wiiuvideo.h"
 #include "SDL_wiiukeyboard.h"
 #include "SDL_wiiu_gfx_heap.h"
+#include "SDL_wiiu_swkbd.h"
 
 #include "../../render/wiiu/SDL_render_wiiu.h"
 
@@ -389,6 +390,7 @@ static void WIIU_PumpEvents(_THIS)
 	}
 
 	SDL_WIIU_PumpKeyboardEvents(_this);
+	WIIU_SWKBD_Calc();
 }
 
 static void WIIU_DeleteDevice(_THIS)
@@ -428,6 +430,11 @@ static SDL_VideoDevice *WIIU_CreateDevice(void)
 	device->SetDisplayMode = WIIU_SetDisplayMode;
 	device->PumpEvents = WIIU_PumpEvents;
 
+	device->HasScreenKeyboardSupport = WIIU_SWKBD_HasScreenKeyboardSupport;
+	device->ShowScreenKeyboard	 = WIIU_SWKBD_ShowScreenKeyboard;
+	device->HideScreenKeyboard	 = WIIU_SWKBD_HideScreenKeyboard;
+	device->IsScreenKeyboardShown	 = WIIU_SWKBD_IsScreenKeyboardShown;
+
 	device->free = WIIU_DeleteDevice;
 
 	return device;
@@ -439,3 +446,11 @@ VideoBootStrap WIIU_bootstrap = {
 };
 
 #endif /* SDL_VIDEO_DRIVER_WIIU */
+
+/*
+ * Local Variables:
+ * indent-tabs-mode: t
+ * tab-width: 8
+ * c-basic-offset: 8
+ * End:
+ */
