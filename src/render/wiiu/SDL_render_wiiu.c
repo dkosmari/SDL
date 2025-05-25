@@ -35,22 +35,13 @@
 
 #include <malloc.h>
 
-SDL_Renderer *WIIU_SDL_CreateRenderer(SDL_Window * window, Uint32 flags)
+int WIIU_SDL_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, Uint32 flags)
 {
-    SDL_Renderer *renderer;
     WIIU_RenderData *data;
-
-    renderer = (SDL_Renderer *) SDL_calloc(1, sizeof(*renderer));
-    if (!renderer) {
-        SDL_OutOfMemory();
-        return NULL;
-    }
 
     data = (WIIU_RenderData *) SDL_calloc(1, sizeof(*data));
     if (!data) {
-        SDL_free(renderer);
-        SDL_OutOfMemory();
-        return NULL;
+        return SDL_OutOfMemory();
     }
 
     /* Setup renderer functions */
@@ -113,7 +104,7 @@ SDL_Renderer *WIIU_SDL_CreateRenderer(SDL_Window * window, Uint32 flags)
     /* Setup colour buffer, rendering to the window */
     WIIU_SDL_SetRenderTarget(renderer, NULL);
 
-    return renderer;
+    return 0;
 }
 
 SDL_bool WIIU_SDL_SupportsBlendMode(SDL_Renderer * renderer, SDL_BlendMode blendMode)

@@ -50,6 +50,8 @@ static int WIIU_JoystickInit(void);
 static int WIIU_JoystickGetCount(void);
 static void WIIU_JoystickDetect(void);
 static const char *WIIU_JoystickGetDeviceName(int device_index);
+static const char *WIIU_JoystickGetDevicePath(int device_index);
+static int WIIU_JoystickGetDeviceSteamVirtualGamepadSlot(int device_index);
 static int WIIU_JoystickGetDevicePlayerIndex(int device_index);
 static void WIIU_JoystickSetDevicePlayerIndex(int device_index, int player_index);
 static SDL_JoystickGUID WIIU_JoystickGetDeviceGUID(int device_index);
@@ -242,9 +244,14 @@ static const char *WIIU_JoystickGetDeviceName(int device_index)
 	return "Unknown";
 }
 
-static const char * WIIU_JoystickGetDevicePath(int device_index)
+static const char *WIIU_JoystickGetDevicePath(int device_index)
 {
     return NULL;
+}
+
+static int WIIU_JoystickGetDeviceSteamVirtualGamepadSlot(int device_index)
+{
+	return -1;
 }
 
 /* Function to get the player index of a joystick */
@@ -628,6 +635,7 @@ SDL_JoystickDriver SDL_WIIU_JoystickDriver =
 	WIIU_JoystickDetect,
 	WIIU_JoystickGetDeviceName,
 	WIIU_JoystickGetDevicePath,
+	WIIU_JoystickGetDeviceSteamVirtualGamepadSlot,
 	WIIU_JoystickGetDevicePlayerIndex,
 	WIIU_JoystickSetDevicePlayerIndex,
 	WIIU_JoystickGetDeviceGUID,
