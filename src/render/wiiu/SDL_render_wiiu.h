@@ -103,7 +103,7 @@ struct WIIU_TextureData
 #define WIIU_TEXTURE_MEM1_MAGIC (void *)0xCAFE0001
 
 /* SDL_render API implementation */
-SDL_Renderer *WIIU_SDL_CreateRenderer(SDL_Window * window, Uint32 flags);
+int WIIU_SDL_CreateRenderer(SDL_Renderer * renderer, SDL_Window * window, Uint32 flags);
 void WIIU_SDL_WindowEvent(SDL_Renderer * renderer,
                              const SDL_WindowEvent *event);
 SDL_bool WIIU_SDL_SupportsBlendMode(SDL_Renderer * renderer, SDL_BlendMode blendMode);

@@ -247,6 +247,11 @@ static const char * WIIU_JoystickGetDevicePath(int device_index)
     return NULL;
 }
 
+static int WIIU_GetDeviceSteamVirtualGamepadSlot(int device_index)
+{
+	return -1;
+}
+
 /* Function to get the player index of a joystick */
 static int WIIU_JoystickGetDevicePlayerIndex(int device_index)
 {
@@ -628,6 +633,7 @@ SDL_JoystickDriver SDL_WIIU_JoystickDriver =
 	WIIU_JoystickDetect,
 	WIIU_JoystickGetDeviceName,
 	WIIU_JoystickGetDevicePath,
+	WIIU_GetDeviceSteamVirtualGamepadSlot,
 	WIIU_JoystickGetDevicePlayerIndex,
 	WIIU_JoystickSetDevicePlayerIndex,
 	WIIU_JoystickGetDeviceGUID,
