@@ -103,8 +103,10 @@ static int WIIU_ForegroundAcquired(_THIS)
 	GX2Invalidate(GX2_INVALIDATE_MODE_CPU, videodata->drcScanBuffer, videodata->drcScanBufferSize);
 	GX2SetDRCBuffer(videodata->drcScanBuffer, videodata->drcScanBufferSize, videodata->drcRenderMode, GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8, GX2_BUFFERING_MODE_DOUBLE);
 
-	SDL_SendAppEvent(SDL_APP_WILLENTERFOREGROUND);
-	SDL_SendAppEvent(SDL_APP_DIDENTERFOREGROUND);
+	if (videodata->handleProcUI) {
+		SDL_SendAppEvent(SDL_APP_WILLENTERFOREGROUND);
+		SDL_SendAppEvent(SDL_APP_DIDENTERFOREGROUND);
+	}
 
 	while (window) {
 		SDL_Renderer* renderer = SDL_GetRenderer(window);
@@ -150,6 +152,15 @@ static int WIIU_ForegroundReleased(_THIS)
 
 	while (window) {
 		SDL_Renderer* renderer = SDL_GetRenderer(window);
+
+		// Avoid sending the event if we're handling ProcUI, since we send this
+		// event from inside WIIU_PumpEvents().
+		// Note: the application won't receive this event until after we return to
+		// the foreground.
+		if (!videodata->handleProcUI) {
+			// No longer in foreground, window is no longer visible.
+			SDL_SendWindowEvent(window, SDL_WINDOWEVENT_HIDDEN, 0, 0);
+		}
 
 		// Destroy window texture, we no longer have access to foreground memory
 		if (renderer) {
@@ -359,6 +370,7 @@ static void WIIU_PumpEvents(_THIS)
 	if (videodata->enteringBackground) {
 		// The previous ProcUIProcessMessages() received a
 		// PROCUI_STATUS_RELEASE_FOREGROUND.
+		// Note: enteringBackground can only become true if handleProcUI is true.
 		videodata->enteringBackground = SDL_FALSE;
 		ProcUIDrawDoneRelease();
 	}
@@ -374,13 +386,17 @@ static void WIIU_PumpEvents(_THIS)
 		case PROCUI_STATUS_RELEASE_FOREGROUND: {
 			SDL_Window* window = _this->windows;
 			while (window) {
-				// No longer in foreground, window is no longer visible
+				// No longer in foreground, window is no longer visible.
 				SDL_SendWindowEvent(window, SDL_WINDOWEVENT_HIDDEN, 0, 0);
 				window = window->next;
 			}
-			videodata->enteringBackground = SDL_TRUE;
 			SDL_SendAppEvent(SDL_APP_WILLENTERBACKGROUND);
 			SDL_SendAppEvent(SDL_APP_DIDENTERBACKGROUND);
+			// Note: we don't cal ProcUIDrawDoneRelease() here to give the
+			// application a chance to receive and process the events queued
+			// above. The next call to WIIU_PumpEvents() is the one that
+			// actually enters the background.
+			videodata->enteringBackground = SDL_TRUE;
 			break;
 		}
 		case PROCUI_STATUS_EXITING:
