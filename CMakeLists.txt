@@ -2929,8 +2929,8 @@ elseif(WIIU)
     set(SOURCE_FILES ${SOURCE_FILES} ${WIIU_VIDEO_SOURCES})
     set(HAVE_SDL_VIDEO TRUE)
   endif()
-
-  list(APPEND EXTRA_LIBS stdc++ wut)
+  list(APPEND EXTRA_CXXFLAGS "-fno-exceptions")
+  list(APPEND EXTRA_LIBS wut)
 endif()
 
 if(HAVE_VULKAN AND NOT SDL_LOADSO)
@@ -3066,8 +3066,13 @@ endif()
 if(EXTRA_CFLAGS)
   list(REMOVE_DUPLICATES EXTRA_CFLAGS)
 endif()
+if(EXTRA_CXXFLAGS)
+  list(REMOVE_DUPLICATES EXTRA_CXXFLAGS)
+endif()
 listtostr(EXTRA_CFLAGS _EXTRA_CFLAGS)
 set(EXTRA_CFLAGS ${_EXTRA_CFLAGS})
+listtostr(EXTRA_CXXFLAGS _EXTRA_CXXFLAGS)
+set(EXTRA_CXXFLAGS ${_EXTRA_CXXFLAGS})
 
 # Compat helpers for the configuration files
 
@@ -3312,10 +3317,11 @@ if("${CMAKE_BUILD_TYPE}" STREQUAL "Debug")
   message(STATUS " CMAKE_CXX_FLAGS_DEBUG: ${CMAKE_CXX_FLAGS_DEBUG}")
 endif()
 message(STATUS "")
-message(STATUS " CFLAGS:        ${CMAKE_C_FLAGS}")
-message(STATUS " EXTRA_CFLAGS:  ${EXTRA_CFLAGS}")
-message(STATUS " EXTRA_LDFLAGS: ${EXTRA_LDFLAGS} ${EXTRA_LDFLAGS_BUILD}")
-message(STATUS " EXTRA_LIBS:    ${EXTRA_LIBS}")
+message(STATUS " CFLAGS:         ${CMAKE_C_FLAGS}")
+message(STATUS " EXTRA_CFLAGS:   ${EXTRA_CFLAGS}")
+message(STATUS " EXTRA_CXXFLAGS: ${EXTRA_CXXFLAGS}")
+message(STATUS " EXTRA_LDFLAGS:  ${EXTRA_LDFLAGS} ${EXTRA_LDFLAGS_BUILD}")
+message(STATUS " EXTRA_LIBS:     ${EXTRA_LIBS}")
 message(STATUS "")
 message(STATUS " Build Shared Library: ${SDL_SHARED}")
 message(STATUS " Build Static Library: ${SDL_STATIC}")
@@ -3350,6 +3356,8 @@ endif()
 
 # Ensure that the extra cflags are used at compile time
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${EXTRA_CFLAGS} ${EXTRA_CFLAGS_BUILD}")
+# Same for cxxflags
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${EXTRA_CXXFLAGS} ${EXTRA_CXXFLAGS_BUILD}")
 
 if(NOT WINDOWS_STORE AND NOT SDL2_DISABLE_SDL2MAIN)
   # Build SDLmain

@@ -20,15 +20,9 @@
 */
 
 #include <array>
-#include <cstring>
 #include <memory>
-#include <new>
 #include <optional>
-#include <stdexcept>
-#include <string>
-#include <type_traits>
 #include <utility>
-#include <vector>
 
 #include "SDL_wiiu_swkbd.h"
 
@@ -45,8 +39,6 @@
 #include "../../events/SDL_events_c.h"
 #include "../../events/SDL_keyboard_c.h"
 
-#include "SDL_cpp_allocator.h"
-
 using nn::swkbd::LanguageType;
 using nn::swkbd::RegionType;
 
@@ -55,19 +47,6 @@ namespace
 
     namespace detail
     {
-
-        // Make sure strings are allocated with SDL_malloc()
-        template <typename T>
-        using basic_string = std::basic_string<T, std::char_traits<T>, sdl::allocator<T>>;
-
-        using string = basic_string<char>;
-        using u8string = basic_string<char8_t>;
-        using u16string = basic_string<char16_t>;
-
-        // We use vector to store the work memory
-        template <typename T>
-        using vector = std::vector<T, sdl::allocator<T>>;
-
         template <typename T>
         struct SDL_Deleter
         {
@@ -76,7 +55,7 @@ namespace
                 const
             {
                 if (ptr) {
-                    ptr->~T();
+                    std::destroy_at(ptr);
                     SDL_free(ptr);
                 }
             }
@@ -92,26 +71,38 @@ namespace
         {
             T *ptr = reinterpret_cast<T *>(SDL_malloc(sizeof(T)));
             if (!ptr)
-                throw std::bad_alloc{};
-            try {
-                new (ptr) T(std::forward<Args>(args)...);
-            }
-            catch (...) {
-                SDL_free(ptr);
-                throw;
-            }
+                return {};
+            std::construct_at(ptr, std::forward<Args>(args)...);
             return unique_ptr<T>{ ptr };
+        }
+
+        // Note: we allow null pointers for these.
+        using raw_string = unique_ptr<char>;
+        using raw_u8string = unique_ptr<char8_t>;
+        using raw_u16string = unique_ptr<char16_t>;
+
+        bool
+        operator==(const raw_string &a,
+                   const char *b)
+        {
+            if (a.get() == b)
+                return true;
+            if (!a.get() || !b)
+                return false;
+            return SDL_strcmp(a.get(), b) == 0;
         }
 
         // RAII class to keep the FS module initialized.
         struct FSLib
         {
             FSLib()
+
             {
                 FSInit();
             }
 
             ~FSLib()
+
             {
                 FSShutdown();
             }
@@ -120,18 +111,19 @@ namespace
 
         struct FSClientWrapper : FSClient
         {
+            bool valid;
 
             FSClientWrapper()
             {
                 auto status = FSAddClient(this, FS_ERROR_FLAG_ALL);
-                if (status != FS_STATUS_OK)
-                    throw std::runtime_error{ "FSAddClient() failed" };
+                valid = status == FS_STATUS_OK;
             }
 
             // disallow moving
             FSClientWrapper(FSClientWrapper &&) = delete;
 
             ~FSClientWrapper()
+
             {
                 FSDelClient(this, FS_ERROR_FLAG_NONE);
             }
@@ -145,7 +137,7 @@ namespace
 
             const nn::swkbd::CreateArg *customArg = nullptr;
             unique_ptr<FSClientWrapper> fsClient;
-            vector<char> workMemory;
+            unique_ptr<char> workMemory;
             std::optional<nn::swkbd::RegionType> region; // store region used to create keyboard
 
             void
@@ -157,13 +149,10 @@ namespace
                  * Normally we'd reuse the memory in case we need to re-create it in
                  * another region. But if swkbd is manually disabled, we better actually
                  * free up all memory.
-                 *
-                 * Only call this after WIIU_SWKBD_Finalize().
                  */
                 region.reset();
                 fsClient.reset();
-                workMemory.clear();
-                workMemory.shrink_to_fit();
+                workMemory.reset();
             }
 
         } // namespace create
@@ -178,12 +167,12 @@ namespace
 
             // keyboard config options
             nn::swkbd::KeyboardMode keyboardMode = nn::swkbd::KeyboardMode::Full;
-            u16string okText;
+            raw_u16string okText;
             bool showWordSuggestions = true;
             // TODO: control disabled inputs, needs to fix nn::swkbd::ConfigArg
             // input form options
-            u16string initialText;
-            u16string hintText;
+            raw_u16string initialText;
+            raw_u16string hintText;
             nn::swkbd::PasswordMode passwordMode = nn::swkbd::PasswordMode::Clear;
             bool highlightInitialText = false;
             bool showCopyPasteButtons = false;
@@ -194,10 +183,10 @@ namespace
             {
                 // Reset all customization after the keyboard is shown.
                 keyboardMode = nn::swkbd::KeyboardMode::Full;
-                okText.clear();
+                okText.reset();
                 showWordSuggestions = true;
-                initialText.clear();
-                hintText.clear();
+                initialText.reset();
+                hintText.reset();
                 passwordMode = nn::swkbd::PasswordMode::Clear;
                 highlightInitialText = false;
                 showCopyPasteButtons = false;
@@ -208,7 +197,7 @@ namespace
 
         bool enabled = true;
 
-        string swkbdLocale;
+        raw_string swkbdLocale;
 
         nn::swkbd::ControllerInfo controllerInfo;
 
@@ -219,24 +208,27 @@ namespace
         SDL_SysWMmsg wmMsgFinish;
 
         // return language, country pair
-        std::pair<string, string>
-        parse_locale(const string &locale)
+        std::pair<raw_string, raw_string>
+        parse_locale(const raw_string &locale)
         {
-            if (locale.empty())
+            if (!locale)
                 return {};
-            char language[3];
-            char country[3];
-            int r = SDL_sscanf(locale.data(), "%2[Ca-z]_%2[A-Z]", language, country);
+            raw_string language{ reinterpret_cast<char *>(SDL_calloc(3, 1)) };
+            raw_string country{ reinterpret_cast<char *>(SDL_calloc(3, 1)) };
+            int r = SDL_sscanf(locale.get(),
+                               "%2[Ca-z]_%2[A-Z]",
+                               language.get(),
+                               country.get());
             if (r == 2)
-                return { language, country };
+                return { std::move(language), std::move(country) };
             if (r == 1)
-                return { language, {} };
+                return { std::move(language), {} };
             return {};
         }
 
         std::optional<LanguageType>
-        to_language(const string &language,
-                    const string &country)
+        to_language(const raw_string &language,
+                    const raw_string &country)
         {
             // two-letter codes, from ISO 639
             if (language == "ja")
@@ -273,8 +265,8 @@ namespace
         }
 
         std::optional<RegionType>
-        to_region(const string &language,
-                  const string &country)
+        to_region(const raw_string &language,
+                  const raw_string &country)
         {
             static const std::array usa_countries = {
                 "US",
@@ -394,7 +386,7 @@ namespace
         }
 
         Uint32
-        read_system_config_u32(const char *key) noexcept
+        read_system_config_u32(const char *key)
         {
             UCHandle handle = UCOpen();
             if (handle < 0) {
@@ -417,7 +409,7 @@ namespace
         }
 
         LanguageType
-        read_system_language() noexcept
+        read_system_language()
         {
             auto lang = read_system_config_u32("cafe.language");
             if (lang <= 11)
@@ -425,15 +417,18 @@ namespace
             return LanguageType::English;
         }
 
+        std::optional<LanguageType> cached_system_language;
+
         LanguageType
-        get_language_from_system() noexcept
+        get_language_from_system()
         {
-            static LanguageType cached = read_system_language();
-            return cached;
+            if (!cached_system_language)
+                cached_system_language = read_system_language();
+            return *cached_system_language;
         }
 
         RegionType
-        read_system_region() noexcept
+        read_system_region()
         {
             alignas(64) MCPSysProdSettings settings{};
             MCPError status = 0;
@@ -462,11 +457,14 @@ namespace
             return RegionType::Europe;
         }
 
+        std::optional<RegionType> cached_system_region;
+
         RegionType
-        get_region_from_system() noexcept
+        get_region_from_system()
         {
-            static RegionType cached = read_system_region();
-            return cached;
+            if (!cached_system_region)
+                cached_system_region = read_system_region();
+            return *cached_system_region;
         }
 
         std::size_t
@@ -480,45 +478,28 @@ namespace
             return result;
         }
 
-        u8string
+        raw_u8string
         to_utf8(const char16_t *input)
         {
+            if (!input)
+                return {};
             auto output = SDL_iconv_string("UTF-8",
                                            "UTF-16BE",
                                            reinterpret_cast<const char *>(input),
                                            2 * (strlen_16(input) + 1));
-            if (!output)
-                throw std::runtime_error{ "SDL_iconv_string() failed" };
-
-            try {
-                u8string result(reinterpret_cast<char8_t *>(output));
-                SDL_free(output);
-                return result;
-            }
-            catch (...) {
-                SDL_free(output);
-                throw;
-            }
+            return raw_u8string{ reinterpret_cast<char8_t *>(output) };
         }
 
-        u16string
+        raw_u16string
         to_utf16(const char *input)
         {
+            if (!input)
+                return {};
             auto output = SDL_iconv_string("UTF-16BE",
                                            "UTF-8",
                                            input,
                                            SDL_strlen(input) + 1);
-            if (!output)
-                throw std::runtime_error{ "SDL_iconv_string() failed" };
-            try {
-                u16string result(reinterpret_cast<char16_t *>(output));
-                SDL_free(output);
-                return result;
-            }
-            catch (...) {
-                SDL_free(output);
-                throw;
-            }
+            return raw_u16string{ reinterpret_cast<char16_t *>(output) };
         }
 
     } // namespace detail
@@ -532,56 +513,57 @@ void WIIU_SWKBD_Initialize(void)
     if (!detail::enabled)
         return;
 
-    try {
-        if (!detail::fsLib)
-            detail::fsLib.emplace();
+    if (!detail::fsLib)
+        detail::fsLib.emplace();
 
-        nn::swkbd::CreateArg arg;
+    nn::swkbd::CreateArg arg;
 
-        if (detail::create::customArg) {
-            arg = *detail::create::customArg;
-        } else {
-            auto [language, country] = detail::parse_locale(detail::swkbdLocale);
-            if (auto region = detail::to_region(language, country))
-                arg.regionType = *region;
-            else
-                arg.regionType = detail::get_region_from_system();
-        }
+    if (detail::create::customArg) {
+        arg = *detail::create::customArg;
+    } else {
+        auto [language, country] = detail::parse_locale(detail::swkbdLocale);
+        if (auto region = detail::to_region(language, country))
+            arg.regionType = *region;
+        else
+            arg.regionType = detail::get_region_from_system();
+    }
 
-        detail::unique_ptr<detail::FSClientWrapper> local_fsClient = std::move(detail::create::fsClient);
-        if (!arg.fsClient) {
-            if (!local_fsClient)
-                local_fsClient = detail::make_unique<detail::FSClientWrapper>();
-            arg.fsClient = local_fsClient.get();
-        } else {
-            // user provided their own fsClient, so destroy the internal one
-            local_fsClient.reset();
-        }
-
-        detail::vector<char> local_workMemory = std::move(detail::create::workMemory);
-        if (!arg.workMemory) {
-            local_workMemory.resize(nn::swkbd::GetWorkMemorySize(0));
-            local_workMemory.shrink_to_fit();
-            arg.workMemory = local_workMemory.data();
-        } else {
-            // user provided their own workMemory, so destroy the internal one
-            local_workMemory.clear();
-            local_workMemory.shrink_to_fit();
-        }
-
-        if (!nn::swkbd::Create(arg)) {
-            SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "nn::swkbd::Create() failed\n");
+    auto local_fsClient = std::move(detail::create::fsClient);
+    if (!arg.fsClient) {
+        if (!local_fsClient)
+            local_fsClient = detail::make_unique<detail::FSClientWrapper>();
+        if (!local_fsClient) {
+            SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Could not create FSClientfor nn::swkbd\n");
             return;
         }
+        arg.fsClient = local_fsClient.get();
+    } else {
+        // user provided their own fsClient, so destroy the internal one
+        local_fsClient.reset();
+    }
 
-        detail::create::workMemory = std::move(local_workMemory);
-        detail::create::fsClient = std::move(local_fsClient);
-        detail::create::region = arg.regionType;
-        detail::create::created = true;
+    auto local_workMemory = std::move(detail::create::workMemory);
+    if (!arg.workMemory) {
+        local_workMemory.reset(reinterpret_cast<char *>(SDL_malloc(nn::swkbd::GetWorkMemorySize(0))));
+        if (!local_workMemory) {
+            SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "Could not allocate memory for nn::swkbd\n");
+            return;
+        }
+        arg.workMemory = local_workMemory.get();
+    } else {
+        // user provided their own workMemory, so destroy the internal one
+        local_workMemory.reset();
     }
-    catch (std::exception &e) {
-        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "WIIU_SWKBD_Initialize() failed: %s\n", e.what());
+
+    if (!nn::swkbd::Create(arg)) {
+        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "nn::swkbd::Create() failed\n");
+        return;
     }
+
+    detail::create::workMemory = std::move(local_workMemory);
+    detail::create::fsClient = std::move(local_fsClient);
+    detail::create::region = arg.regionType;
+    detail::create::created = true;
 }
 
 __attribute__((__destructor__)) void WIIU_SWKBD_Finalize(void)
@@ -628,14 +610,11 @@ void WIIU_SWKBD_Calc(void)
 
         auto str16 = nn::swkbd::GetInputFormString();
         if (str16) {
-            try {
-                auto str8 = detail::to_utf8(str16);
-                SDL_SendKeyboardText(reinterpret_cast<const char *>(str8.data()));
-            }
-            catch (std::exception &e) {
-                SDL_LogError(SDL_LOG_CATEGORY_VIDEO,
-                             "could not convert utf-16 to utf-8: %s\n", e.what());
-            }
+            auto str8 = detail::to_utf8(str16);
+            if (str8)
+                SDL_SendKeyboardText(reinterpret_cast<const char *>(str8.get()));
+            else
+                SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "could not convert utf-16 to utf-8\n");
         }
 
         // Send an event after the string.
@@ -715,8 +694,8 @@ void WIIU_SWKBD_ShowScreenKeyboard(_THIS, SDL_Window *window)
         arg.keyboardArg.configArg.keyboardMode = detail::appear::keyboardMode;
 
         // Set OK text
-        if (!detail::appear::okText.empty())
-            arg.keyboardArg.configArg.okString = detail::appear::okText.data();
+        if (detail::appear::okText)
+            arg.keyboardArg.configArg.okString = detail::appear::okText.get();
 
         // Set word suggestions
         arg.keyboardArg.configArg.showWordSuggestions = detail::appear::showWordSuggestions;
@@ -725,12 +704,12 @@ void WIIU_SWKBD_ShowScreenKeyboard(_THIS, SDL_Window *window)
         arg.keyboardArg.configArg.drawSysWiiPointer = detail::appear::drawWiiPointer;
 
         // Set initial text
-        if (!detail::appear::initialText.empty())
-            arg.inputFormArg.initialText = detail::appear::initialText.data();
+        if (detail::appear::initialText)
+            arg.inputFormArg.initialText = detail::appear::initialText.get();
 
         // Set hint text
-        if (!detail::appear::hintText.empty())
-            arg.inputFormArg.hintText = detail::appear::hintText.data();
+        if (detail::appear::hintText)
+            arg.inputFormArg.hintText = detail::appear::hintText.get();
 
         // Set password mode
         arg.inputFormArg.passwordMode = detail::appear::passwordMode;
@@ -824,15 +803,7 @@ void SDL_WiiUSetSWKBDKeyboardMode(SDL_WiiUSWKBDKeyboardMode mode)
 
 void SDL_WiiUSetSWKBDOKLabel(const char *label)
 {
-    try {
-        if (label)
-            detail::appear::okText = detail::to_utf16(label);
-        else
-            detail::appear::okText.clear();
-    }
-    catch (std::exception &e) {
-        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "set swkbd OK label failed: %s\n", e.what());
-    }
+    detail::appear::okText = detail::to_utf16(label);
 }
 
 void SDL_WiiUSetSWKBDShowWordSuggestions(SDL_bool show)
@@ -842,28 +813,12 @@ void SDL_WiiUSetSWKBDShowWordSuggestions(SDL_bool show)
 
 void SDL_WiiUSetSWKBDInitialText(const char *text)
 {
-    try {
-        if (text)
-            detail::appear::initialText = detail::to_utf16(text);
-        else
-            detail::appear::initialText.clear();
-    }
-    catch (std::exception &e) {
-        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "set swkbd initial text failed: %s\n", e.what());
-    }
+    detail::appear::initialText = detail::to_utf16(text);
 }
 
 void SDL_WiiUSetSWKBDHintText(const char *text)
 {
-    try {
-        if (text)
-            detail::appear::hintText = detail::to_utf16(text);
-        else
-            detail::appear::hintText.clear();
-    }
-    catch (std::exception &e) {
-        SDL_LogError(SDL_LOG_CATEGORY_VIDEO, "set swkbd hint text failed: %s\n", e.what());
-    }
+    detail::appear::hintText = detail::to_utf16(text);
 }
 
 void SDL_WiiUSetSWKBDPasswordMode(SDL_WiiUSWKBDPasswordMode mode)
@@ -902,18 +857,13 @@ void SDL_WiiUSetSWKBDDrawWiiPointer(SDL_bool draw)
 void SDL_WiiUSetSWKBDLocale(const char *locale)
 {
     // Don't do anything if the locale didn't change.
-    if (locale) {
-        if (locale == detail::swkbdLocale)
-            return;
-    } else {
-        if (!locale && detail::swkbdLocale.empty())
-            return;
-    }
+    if (detail::swkbdLocale == locale)
+        return;
     WIIU_SWKBD_Finalize();
     if (locale)
-        detail::swkbdLocale = locale;
+        detail::swkbdLocale.reset(SDL_strdup(locale));
     else
-        detail::swkbdLocale.clear();
+        detail::swkbdLocale.reset();
 }
 
 SDL_bool SDL_WiiUSetSWKBDVPAD(const void *vpad)
