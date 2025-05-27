@@ -370,7 +370,7 @@ static void WIIU_PumpEvents(_THIS)
 				}
 				SDL_SendAppEvent(SDL_APP_WILLENTERBACKGROUND);
 				SDL_SendAppEvent(SDL_APP_DIDENTERBACKGROUND);
-				// Note: we don't cal ProcUIDrawDoneRelease() here to give
+				// Note: we don't call ProcUIDrawDoneRelease() here to give
 				// the application a chance to receive and process the
 				// events queued above. The next call to WIIU_PumpEvents()
 				// is the one that actually enters the background.
