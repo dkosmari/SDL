@@ -102,6 +102,11 @@ static int WIIU_ForegroundAcquired(_THIS)
 	GX2Invalidate(GX2_INVALIDATE_MODE_CPU, videodata->drcScanBuffer, videodata->drcScanBufferSize);
 	GX2SetDRCBuffer(videodata->drcScanBuffer, videodata->drcScanBufferSize, videodata->drcRenderMode, GX2_SURFACE_FORMAT_UNORM_R8_G8_B8_A8, GX2_BUFFERING_MODE_DOUBLE);
 
+	if (videodata->handleProcUI) {
+		SDL_SendAppEvent(SDL_APP_WILLENTERFOREGROUND);
+		SDL_SendAppEvent(SDL_APP_DIDENTERFOREGROUND);
+	}
+
 	while (window) {
 		SDL_Renderer* renderer = SDL_GetRenderer(window);
 
@@ -147,8 +152,14 @@ static int WIIU_ForegroundReleased(_THIS)
 	while (window) {
 		SDL_Renderer* renderer = SDL_GetRenderer(window);
 
-		// No longer in foreground, window is no longer visible
-		SDL_SendWindowEvent(window, SDL_WINDOWEVENT_HIDDEN, 0, 0);
+		// Avoid sending the event if we're handling ProcUI, since we send this
+		// event from inside WIIU_PumpEvents().
+		// Note: the application won't receive this event until after we return to
+		// the foreground.
+		if (!videodata->handleProcUI) {
+			// No longer in foreground, window is no longer visible.
+			SDL_SendWindowEvent(window, SDL_WINDOWEVENT_HIDDEN, 0, 0);
+		}
 
 		// Destroy window texture, we no longer have access to foreground memory
 		if (renderer) {
@@ -188,7 +199,7 @@ static int WIIU_VideoInit(_THIS)
 	// check if the user already set up procui or if we should handle it
 	if (!ProcUIIsRunning()) {
 		ProcUIInitEx(WiiU_SaveCallback, NULL);
-		
+
 		videodata->handleProcUI = SDL_TRUE;
 	}
 
@@ -335,11 +346,42 @@ static void WIIU_PumpEvents(_THIS)
 	WIIU_VideoData *videodata = (WIIU_VideoData *) _this->driverdata;
 
 	if (videodata->handleProcUI) {
-		ProcUIStatus status = ProcUIProcessMessages(TRUE);
-		if (status == PROCUI_STATUS_EXITING) {
-			SDL_SendQuit();
-		} else if (status == PROCUI_STATUS_RELEASE_FOREGROUND) {
+		if (videodata->enteringBackground) {
+			// The previous ProcUIProcessMessages() received a
+			// PROCUI_STATUS_RELEASE_FOREGROUND.
+			videodata->enteringBackground = SDL_FALSE;
 			ProcUIDrawDoneRelease();
+		}
+
+		if (ProcUIIsRunning() && !ProcUIInShutdown()) {
+			ProcUIStatus status = ProcUIProcessMessages(TRUE);
+			switch (status) {
+			case PROCUI_STATUS_IN_FOREGROUND:
+				videodata->enteringBackground = SDL_FALSE;
+				break;
+			case PROCUI_STATUS_IN_BACKGROUND:
+				break;
+			case PROCUI_STATUS_RELEASE_FOREGROUND: {
+				SDL_Window* window = _this->windows;
+				while (window) {
+					// No longer in foreground, window is no longer
+					// visible.
+					SDL_SendWindowEvent(window, SDL_WINDOWEVENT_HIDDEN, 0, 0);
+					window = window->next;
+				}
+				SDL_SendAppEvent(SDL_APP_WILLENTERBACKGROUND);
+				SDL_SendAppEvent(SDL_APP_DIDENTERBACKGROUND);
+				// Note: we don't call ProcUIDrawDoneRelease() here to give
+				// the application a chance to receive and process the
+				// events queued above. The next call to WIIU_PumpEvents()
+				// is the one that actually enters the background.
+				videodata->enteringBackground = SDL_TRUE;
+				break;
+			}
+			case PROCUI_STATUS_EXITING:
+				SDL_SendQuit();
+				break;
+			}
 		}
 	}
 
@@ -347,10 +389,10 @@ static void WIIU_PumpEvents(_THIS)
 	WIIU_SWKBD_Calc();
 }
 
-static void WIIU_DeleteDevice(SDL_VideoDevice *device)
+static void WIIU_DeleteDevice(_THIS)
 {
-	SDL_free(device->driverdata);
-	SDL_free(device);
+	SDL_free(_this->driverdata);
+	SDL_free(_this);
 }
 
 static SDL_VideoDevice *WIIU_CreateDevice(void)
