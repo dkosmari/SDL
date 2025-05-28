@@ -367,7 +367,7 @@ static void WIIU_PumpEvents(_THIS)
 {
 	WIIU_VideoData *videodata = (WIIU_VideoData *) _this->driverdata;
 
-	if (videodata->handleProcUI) {
+	if (videodata->handleProcUI && !ProcUIInShutdown()) {
 		if (videodata->enteringBackground) {
 			// The previous ProcUIProcessMessages() received a
 			// PROCUI_STATUS_RELEASE_FOREGROUND.
