@@ -21,7 +21,7 @@
 
 #include "SDL_wiiukeyboard.h"
 
-#include "SDL_wiiu_swkbd.h"
+#include "SDL_wiiuswkbd.h"
 
 #include "../../SDL_internal.h"
 
@@ -135,11 +135,3 @@ int SDL_WIIU_QuitKeyboard(_THIS)
 
 	return 1;
 }
-
-/*
- * Local Variables:
- * indent-tabs-mode: t
- * tab-width: 8
- * c-basic-offset: 8
- * End:
- */

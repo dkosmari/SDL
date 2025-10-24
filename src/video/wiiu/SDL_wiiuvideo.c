@@ -38,7 +38,7 @@
 #include "SDL_wiiuvideo.h"
 #include "SDL_wiiukeyboard.h"
 #include "SDL_wiiu_gfx_heap.h"
-#include "SDL_wiiu_swkbd.h"
+#include "SDL_wiiuswkbd.h"
 
 #include "../../render/wiiu/SDL_render_wiiu.h"
 
@@ -292,6 +292,8 @@ static void WIIU_VideoQuit(_THIS)
 {
 	WIIU_VideoData *videodata = (WIIU_VideoData *) _this->driverdata;
 
+	WIIU_SWKBD_Finalize();
+
 	if (videodata->handleProcUI) {
 		// Put ProcUI into EXIT/shutdown state if user stopped processing events
 		// before SDL_QUIT was generated.
@@ -464,11 +466,3 @@ VideoBootStrap WIIU_bootstrap = {
 };
 
 #endif /* SDL_VIDEO_DRIVER_WIIU */
-
-/*
- * Local Variables:
- * indent-tabs-mode: t
- * tab-width: 8
- * c-basic-offset: 8
- * End:
- */

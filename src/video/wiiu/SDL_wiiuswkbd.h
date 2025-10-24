@@ -19,8 +19,8 @@
   3. This notice may not be removed or altered from any source distribution.
 */
 
-#ifndef SDL_wiiu_swkbd_h
-#define SDL_wiiu_swkbd_h
+#ifndef SDL_wiiuswkbd_h
+#define SDL_wiiuswkbd_h
 
 #include "../../SDL_internal.h"
 #include "../SDL_sysvideo.h"

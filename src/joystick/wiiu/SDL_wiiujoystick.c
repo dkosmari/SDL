@@ -41,7 +41,7 @@
 
 #include "SDL_wiiujoystick.h"
 #include "../../video/SDL_sysvideo.h"
-#include "../../video/wiiu/SDL_wiiu_swkbd.h"
+#include "../../video/wiiu/SDL_wiiuswkbd.h"
 
 //index with device_index, get WIIU_DEVICE*
 static int deviceMap[MAX_CONTROLLERS];
@@ -678,11 +678,3 @@ SDL_JoystickDriver SDL_WIIU_JoystickDriver =
 };
 
 #endif
-
-/*
- * Local Variables:
- * indent-tabs-mode: t
- * tab-width: 8
- * c-basic-offset: 8
- * End:
- */
