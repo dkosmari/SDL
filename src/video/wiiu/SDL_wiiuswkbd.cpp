@@ -135,7 +135,6 @@ namespace
             // track of it here.
             bool created = false;
 
-            const nn::swkbd::CreateArg *customArg = nullptr;
             unique_ptr<FSClientWrapper> fsClient;
             unique_ptr<char> workMemory;
             std::optional<nn::swkbd::RegionType> region; // store region used to create keyboard
@@ -160,7 +159,6 @@ namespace
         namespace appear
         {
 
-            const nn::swkbd::AppearArg *customArg = nullptr;
             nn::swkbd::AppearArg theArg;
             // Keep track of wich window has the swkbd.
             SDL_Window *window = nullptr;
@@ -518,15 +516,11 @@ void WIIU_SWKBD_Initialize(void)
 
     nn::swkbd::CreateArg arg;
 
-    if (detail::create::customArg) {
-        arg = *detail::create::customArg;
-    } else {
-        auto [language, country] = detail::parse_locale(detail::swkbdLocale);
-        if (auto region = detail::to_region(language, country))
-            arg.regionType = *region;
-        else
-            arg.regionType = detail::get_region_from_system();
-    }
+    auto [language, country] = detail::parse_locale(detail::swkbdLocale);
+    if (auto region = detail::to_region(language, country))
+        arg.regionType = *region;
+    else
+        arg.regionType = detail::get_region_from_system();
 
     auto local_fsClient = std::move(detail::create::fsClient);
     if (!arg.fsClient) {
@@ -672,64 +666,57 @@ void WIIU_SWKBD_ShowScreenKeyboard(_THIS, SDL_Window *window)
     if (!detail::appear::window)
         detail::appear::window = window;
 
-    const nn::swkbd::AppearArg *parg;
-    if (detail::appear::customArg) {
-        parg = detail::appear::customArg;
-    } else {
-        nn::swkbd::AppearArg &arg = detail::appear::theArg;
-        arg = nn::swkbd::AppearArg{}; // reset all values to default
-        // Set language
-        auto [language, country] = detail::parse_locale(detail::swkbdLocale);
-        if (auto lang = detail::to_language(language, country))
-            arg.keyboardArg.configArg.languageType = *lang;
-        else
-            arg.keyboardArg.configArg.languageType = detail::get_language_from_system();
+    nn::swkbd::AppearArg &arg = detail::appear::theArg;
+    arg = nn::swkbd::AppearArg{}; // reset all values to default
+    // Set language
+    auto [language, country] = detail::parse_locale(detail::swkbdLocale);
+    if (auto lang = detail::to_language(language, country))
+        arg.keyboardArg.configArg.languageType = *lang;
+    else
+        arg.keyboardArg.configArg.languageType = detail::get_language_from_system();
 
-        // set keyboard layout according to language
-        // TODO: fix wut: it's the unk_0x10 field
-        arg.keyboardArg.configArg.unk_0x10 = detail::to_keyboard_layout(arg.keyboardArg.configArg.languageType,
-                                                                        detail::create::region.value_or(nn::swkbd::RegionType::Europe));
+    // set keyboard layout according to language
+    // TODO: fix wut: it's the unk_0x10 field
+    arg.keyboardArg.configArg.unk_0x10 = detail::to_keyboard_layout(arg.keyboardArg.configArg.languageType,
+                                                                    detail::create::region.value_or(nn::swkbd::RegionType::Europe));
 
-        // Set keyboard mode
-        arg.keyboardArg.configArg.keyboardMode = detail::appear::keyboardMode;
+    // Set keyboard mode
+    arg.keyboardArg.configArg.keyboardMode = detail::appear::keyboardMode;
 
-        // Set OK text
-        if (detail::appear::okText)
-            arg.keyboardArg.configArg.okString = detail::appear::okText.get();
+    // Set OK text
+    if (detail::appear::okText)
+        arg.keyboardArg.configArg.okString = detail::appear::okText.get();
 
-        // Set word suggestions
-        arg.keyboardArg.configArg.showWordSuggestions = detail::appear::showWordSuggestions;
+    // Set word suggestions
+    arg.keyboardArg.configArg.showWordSuggestions = detail::appear::showWordSuggestions;
 
-        // Set show Wii pointer
-        arg.keyboardArg.configArg.drawSysWiiPointer = detail::appear::drawWiiPointer;
+    // Set show Wii pointer
+    arg.keyboardArg.configArg.drawSysWiiPointer = detail::appear::drawWiiPointer;
 
-        // Set initial text
-        if (detail::appear::initialText)
-            arg.inputFormArg.initialText = detail::appear::initialText.get();
+    // Set initial text
+    if (detail::appear::initialText)
+        arg.inputFormArg.initialText = detail::appear::initialText.get();
 
-        // Set hint text
-        if (detail::appear::hintText)
-            arg.inputFormArg.hintText = detail::appear::hintText.get();
+    // Set hint text
+    if (detail::appear::hintText)
+        arg.inputFormArg.hintText = detail::appear::hintText.get();
 
-        // Set password mode
-        arg.inputFormArg.passwordMode = detail::appear::passwordMode;
+    // Set password mode
+    arg.inputFormArg.passwordMode = detail::appear::passwordMode;
 
-        // Set highlight initial text
-        // Note the typo, must fix this after we fix WUT
-        arg.inputFormArg.higlightInitialText = detail::appear::highlightInitialText;
+    // Set highlight initial text
+    // Note the typo, must fix this after we fix WUT
+    arg.inputFormArg.higlightInitialText = detail::appear::highlightInitialText;
 
-        // Set show copy paste buttons
-        arg.inputFormArg.showCopyPasteButtons = detail::appear::showCopyPasteButtons;
+    // Set show copy paste buttons
+    arg.inputFormArg.showCopyPasteButtons = detail::appear::showCopyPasteButtons;
 
-        if (window->flags & SDL_WINDOW_WIIU_TV_ONLY)
-            arg.keyboardArg.configArg.controllerType = nn::swkbd::ControllerType::WiiRemote0;
-        else
-            arg.keyboardArg.configArg.controllerType = nn::swkbd::ControllerType::DrcGamepad;
+    if (window->flags & SDL_WINDOW_WIIU_TV_ONLY)
+        arg.keyboardArg.configArg.controllerType = nn::swkbd::ControllerType::WiiRemote0;
+    else
+        arg.keyboardArg.configArg.controllerType = nn::swkbd::ControllerType::DrcGamepad;
 
-        parg = &arg;
-    }
-
-    nn::swkbd::AppearInputForm(*parg);
+    nn::swkbd::AppearInputForm(arg);
     detail::appear::reset();
 }
 
@@ -766,18 +753,6 @@ void SDL_WiiUSetSWKBDEnabled(SDL_bool enabled)
             detail::create::cleanup();
         }
     }
-}
-
-void SDL_WiiUSetSWKBDCreateArg(void *arg)
-{
-    detail::create::customArg = reinterpret_cast<const nn::swkbd::CreateArg *>(arg);
-    // force swkbd to be created again next time it's shown
-    WIIU_SWKBD_Finalize();
-}
-
-void SDL_WiiUSetSWKBDAppearArg(const void *arg)
-{
-    detail::appear::customArg = reinterpret_cast<const nn::swkbd::AppearArg *>(arg);
 }
 
 void SDL_WiiUSetSWKBDKeyboardMode(SDL_WiiUSWKBDKeyboardMode mode)
