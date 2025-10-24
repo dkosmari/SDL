@@ -292,6 +292,8 @@ static void WIIU_VideoQuit(_THIS)
 {
 	WIIU_VideoData *videodata = (WIIU_VideoData *) _this->driverdata;
 
+	WIIU_SWKBD_Finalize();
+
 	if (videodata->handleProcUI) {
 		// Put ProcUI into EXIT/shutdown state if user stopped processing events
 		// before SDL_QUIT was generated.
