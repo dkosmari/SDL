@@ -335,55 +335,6 @@ namespace
         }
 
         Uint32
-        to_keyboard_layout(LanguageType language,
-                           RegionType region)
-        {
-            switch (language) {
-            case LanguageType::Japanese:
-                return 0;
-
-            case LanguageType::English:
-                if (region == RegionType::USA)
-                    return 1;
-                else
-                    return 5;
-
-            case LanguageType::French:
-                if (region == RegionType::USA)
-                    return 2;
-                else
-                    return 6;
-
-            case LanguageType::German:
-                return 7;
-
-            case LanguageType::Italian:
-                return 8;
-
-            case LanguageType::Spanish:
-                if (region == RegionType::USA)
-                    return 3;
-                else
-                    return 9;
-
-            case LanguageType::Dutch:
-                return 10;
-
-            case LanguageType::Portuguese:
-                if (region == RegionType::USA)
-                    return 4;
-                else
-                    return 11;
-
-            case LanguageType::Russian:
-                return 12;
-
-            default:
-                return 19;
-            }
-        }
-
-        Uint32
         read_system_config_u32(const char *key)
         {
             UCHandle handle = UCOpen();
@@ -674,11 +625,6 @@ void WIIU_SWKBD_ShowScreenKeyboard(_THIS, SDL_Window *window)
         arg.keyboardArg.configArg.languageType = *lang;
     else
         arg.keyboardArg.configArg.languageType = detail::get_language_from_system();
-
-    // set keyboard layout according to language
-    // TODO: fix wut: it's the unk_0x10 field
-    arg.keyboardArg.configArg.unk_0x10 = detail::to_keyboard_layout(arg.keyboardArg.configArg.languageType,
-                                                                    detail::create::region.value_or(nn::swkbd::RegionType::Europe));
 
     // Set keyboard mode
     arg.keyboardArg.configArg.keyboardMode = detail::appear::keyboardMode;
