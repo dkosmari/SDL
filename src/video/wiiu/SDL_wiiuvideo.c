@@ -38,7 +38,7 @@
 #include "SDL_wiiuvideo.h"
 #include "SDL_wiiukeyboard.h"
 #include "SDL_wiiu_gfx_heap.h"
-#include "SDL_wiiu_swkbd.h"
+#include "SDL_wiiuswkbd.h"
 
 #include "../../render/wiiu/SDL_render_wiiu.h"
 

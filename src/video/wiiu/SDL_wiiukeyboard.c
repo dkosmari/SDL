@@ -21,7 +21,7 @@
 
 #include "SDL_wiiukeyboard.h"
 
-#include "SDL_wiiu_swkbd.h"
+#include "SDL_wiiuswkbd.h"
 
 #include "../../SDL_internal.h"
 

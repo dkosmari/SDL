@@ -41,7 +41,7 @@
 
 #include "SDL_wiiujoystick.h"
 #include "../../video/SDL_sysvideo.h"
-#include "../../video/wiiu/SDL_wiiu_swkbd.h"
+#include "../../video/wiiu/SDL_wiiuswkbd.h"
 
 //index with device_index, get WIIU_DEVICE*
 static int deviceMap[MAX_CONTROLLERS];

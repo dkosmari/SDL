@@ -24,7 +24,7 @@
 #include <optional>
 #include <utility>
 
-#include "SDL_wiiu_swkbd.h"
+#include "SDL_wiiuswkbd.h"
 
 #include <coreinit/filesystem.h>
 #include <coreinit/mcp.h>

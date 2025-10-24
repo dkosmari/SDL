@@ -26,7 +26,7 @@
 
 #include "../SDL_sysrender.h"
 #include "SDL_render_wiiu.h"
-#include "../../video/wiiu/SDL_wiiu_swkbd.h"
+#include "../../video/wiiu/SDL_wiiuswkbd.h"
 
 #include <gx2/registers.h>
 #include <gx2/state.h>
