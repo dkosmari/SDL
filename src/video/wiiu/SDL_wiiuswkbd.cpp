@@ -560,7 +560,7 @@ void WIIU_SWKBD_Initialize(void)
     detail::create::created = true;
 }
 
-__attribute__((__destructor__)) void WIIU_SWKBD_Finalize(void)
+void WIIU_SWKBD_Finalize(void)
 {
     if (!detail::create::created)
         return;
