@@ -464,11 +464,3 @@ VideoBootStrap WIIU_bootstrap = {
 };
 
 #endif /* SDL_VIDEO_DRIVER_WIIU */
-
-/*
- * Local Variables:
- * indent-tabs-mode: t
- * tab-width: 8
- * c-basic-offset: 8
- * End:
- */

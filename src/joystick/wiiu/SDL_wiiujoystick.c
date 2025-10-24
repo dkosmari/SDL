@@ -678,11 +678,3 @@ SDL_JoystickDriver SDL_WIIU_JoystickDriver =
 };
 
 #endif
-
-/*
- * Local Variables:
- * indent-tabs-mode: t
- * tab-width: 8
- * c-basic-offset: 8
- * End:
- */
