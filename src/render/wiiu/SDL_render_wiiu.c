@@ -197,11 +197,6 @@ int WIIU_SDL_SetRenderTarget(SDL_Renderer * renderer, SDL_Texture * texture)
     /* make sure we're using the correct renderer ctx */
     GX2SetContextState(data->ctx);
 
-    /* Wait for the texture rendering to finish if it is still in use by the GPU */
-    if (WIIU_TextureInUse(data, tdata)) {
-        WIIU_TextureWaitDone(data, tdata);
-    }
-
     /* Update context state */
     GX2SetColorBuffer(&tdata->cbuf, GX2_RENDER_TARGET_0);
 

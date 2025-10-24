@@ -49,6 +49,7 @@
 
 #include <coreinit/foreground.h>
 #include <proc_ui/procui.h>
+#include <sysapp/launch.h>
 
 #include <gx2/context.h>
 #include <gx2/display.h>
@@ -291,6 +292,27 @@ static void WIIU_VideoQuit(_THIS)
 {
 	WIIU_VideoData *videodata = (WIIU_VideoData *) _this->driverdata;
 
+	if (videodata->handleProcUI) {
+		// Put ProcUI into EXIT/shutdown state if user stopped processing events
+		// before SDL_QUIT was generated.
+		if (ProcUIIsRunning() && !ProcUIInShutdown()) {
+			SDL_bool procui_running = SDL_TRUE;
+			SYSLaunchMenu();
+			while (procui_running) {
+				switch (ProcUIProcessMessages(TRUE)) {
+				case PROCUI_STATUS_RELEASE_FOREGROUND:
+					ProcUIDrawDoneRelease();
+					break;
+				case PROCUI_STATUS_EXITING:
+					procui_running = SDL_FALSE;
+					break;
+				default:
+					;
+				}
+			}
+		}
+	}
+
 	// if we're in foreground, destroy foreground data
 	if (videodata->hasForeground) {
 		WIIU_ForegroundReleased(_this);
@@ -345,7 +367,7 @@ static void WIIU_PumpEvents(_THIS)
 {
 	WIIU_VideoData *videodata = (WIIU_VideoData *) _this->driverdata;
 
-	if (videodata->handleProcUI) {
+	if (videodata->handleProcUI && !ProcUIInShutdown()) {
 		if (videodata->enteringBackground) {
 			// The previous ProcUIProcessMessages() received a
 			// PROCUI_STATUS_RELEASE_FOREGROUND.

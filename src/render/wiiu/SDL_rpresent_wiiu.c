@@ -39,9 +39,21 @@ static SDL_bool tvDrcEnabled = SDL_FALSE;
 
 int WIIU_SDL_SetVSync(SDL_Renderer * renderer, const int vsync)
 {
-    GX2SetSwapInterval(vsync ? 1 : 0);
+    WIIU_VideoData *videodata = (WIIU_VideoData *) SDL_GetVideoDevice()->driverdata;
+    uint32_t swapInterval = vsync ? 1 : 0;
 
-    if (GX2GetSwapInterval() > 0) {
+    // Don't attempt to update swap interval if in background
+    if (!videodata->hasForeground) {
+        return 0;
+    }
+
+    if (GX2GetSwapInterval() == swapInterval) {
+        return 0;
+    }
+
+    GX2SetSwapInterval(swapInterval);
+
+    if (swapInterval > 0) {
         renderer->info.flags |= SDL_RENDERER_PRESENTVSYNC;
     } else {
         renderer->info.flags &= ~SDL_RENDERER_PRESENTVSYNC;
@@ -87,8 +99,11 @@ int WIIU_SDL_RenderPresent(SDL_Renderer * renderer)
         GX2CopyColorBufferToScanBuffer(&tdata->cbuf, GX2_SCAN_TARGET_DRC);
     }
 
-    /* Swap buffers */
-    GX2SwapScanBuffers();
+    /* Swap buffers if the window doesn't prevent it */
+    if (!(flags & SDL_WINDOW_WIIU_PREVENT_SWAP)) {
+        GX2SwapScanBuffers();
+    }
+
     GX2Flush();
 
     /* Restore SDL context state */
