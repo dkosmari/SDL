@@ -39,6 +39,8 @@ struct WIIU_VideoData
 
 	SDL_bool hasForeground;
 	SDL_bool enteringBackground;
+	// indicate if ProcUI received PROCUI_STATUS_EXITING
+	SDL_bool exitingProcUI;
 
 	void *commandBufferPool;
 
