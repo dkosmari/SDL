@@ -292,9 +292,9 @@ static void WIIU_VideoQuit(_THIS)
 	WIIU_VideoData *videodata = (WIIU_VideoData *) _this->driverdata;
 
 	if (videodata->handleProcUI) {
-		// Put ProcUI into EXIT/shutdown state if user stopped processing events
+		// Put ProcUI into EXIT state if user stopped processing events
 		// before SDL_QUIT was generated.
-		if (ProcUIIsRunning() && !ProcUIInShutdown()) {
+		if (ProcUIIsRunning() && !videodata->exitingProcUI) {
 			SDL_bool procui_running = SDL_TRUE;
 			SYSLaunchMenu();
 			while (procui_running) {
@@ -366,7 +366,7 @@ static void WIIU_PumpEvents(_THIS)
 {
 	WIIU_VideoData *videodata = (WIIU_VideoData *) _this->driverdata;
 
-	if (videodata->handleProcUI && !ProcUIInShutdown()) {
+	if (videodata->handleProcUI) {
 		if (videodata->enteringBackground) {
 			// The previous ProcUIProcessMessages() received a
 			// PROCUI_STATUS_RELEASE_FOREGROUND.
@@ -374,7 +374,7 @@ static void WIIU_PumpEvents(_THIS)
 			ProcUIDrawDoneRelease();
 		}
 
-		if (ProcUIIsRunning() && !ProcUIInShutdown()) {
+		if (ProcUIIsRunning() && !videodata->exitingProcUI) {
 			ProcUIStatus status = ProcUIProcessMessages(TRUE);
 			switch (status) {
 			case PROCUI_STATUS_IN_FOREGROUND:
@@ -383,7 +383,7 @@ static void WIIU_PumpEvents(_THIS)
 			case PROCUI_STATUS_IN_BACKGROUND:
 				break;
 			case PROCUI_STATUS_RELEASE_FOREGROUND: {
-				SDL_Window* window = _this->windows;
+				SDL_Window *window = _this->windows;
 				while (window) {
 					// No longer in foreground, window is no longer
 					// visible.
@@ -400,6 +400,7 @@ static void WIIU_PumpEvents(_THIS)
 				break;
 			}
 			case PROCUI_STATUS_EXITING:
+				videodata->exitingProcUI = SDL_TRUE;
 				SDL_SendQuit();
 				break;
 			}
