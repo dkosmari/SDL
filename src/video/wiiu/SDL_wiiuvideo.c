@@ -38,6 +38,7 @@
 #include "SDL_wiiuvideo.h"
 #include "SDL_wiiukeyboard.h"
 #include "SDL_wiiu_gfx_heap.h"
+#include "SDL_wiiuswkbd.h"
 
 #include "../../render/wiiu/SDL_render_wiiu.h"
 
@@ -296,6 +297,8 @@ static void WIIU_VideoQuit(_THIS)
 {
 	WIIU_VideoData *videodata = (WIIU_VideoData *) _this->driverdata;
 
+	WIIU_SWKBD_Finalize();
+
 	if (videodata->handleProcUI) {
 		// Put ProcUI into EXIT state if user stopped processing events
 		// before SDL_QUIT was generated.
@@ -413,6 +416,7 @@ static void WIIU_PumpEvents(_THIS)
 	}
 
 	SDL_WIIU_PumpKeyboardEvents(_this);
+	WIIU_SWKBD_Calc();
 }
 
 static void WIIU_DeleteDevice(_THIS)
@@ -451,6 +455,11 @@ static SDL_VideoDevice *WIIU_CreateDevice(void)
 	device->GetDisplayModes = WIIU_GetDisplayModes;
 	device->SetDisplayMode = WIIU_SetDisplayMode;
 	device->PumpEvents = WIIU_PumpEvents;
+
+	device->HasScreenKeyboardSupport = WIIU_SWKBD_HasScreenKeyboardSupport;
+	device->ShowScreenKeyboard	 = WIIU_SWKBD_ShowScreenKeyboard;
+	device->HideScreenKeyboard	 = WIIU_SWKBD_HideScreenKeyboard;
+	device->IsScreenKeyboardShown	 = WIIU_SWKBD_IsScreenKeyboardShown;
 
 	device->free = WIIU_DeleteDevice;
 
