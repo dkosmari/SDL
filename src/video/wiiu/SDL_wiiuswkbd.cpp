@@ -194,8 +194,6 @@ namespace
 
         } // namespace appear
 
-        bool enabled = true;
-
         raw_string swkbdLocale;
 
         nn::swkbd::ControllerInfo controllerInfo;
@@ -506,9 +504,6 @@ void WIIU_SWKBD_Initialize(void)
     if (detail::create::created)
         return;
 
-    if (!detail::enabled)
-        return;
-
     if (!detail::fsLib)
         detail::fsLib.emplace();
 
@@ -574,9 +569,6 @@ void WIIU_SWKBD_Calc(void)
     if (!detail::create::created)
         return;
 
-    if (!detail::enabled)
-        return;
-
     nn::swkbd::Calc(detail::controllerInfo);
     detail::controllerInfo = {};
 
@@ -630,9 +622,6 @@ void WIIU_SWKBD_Draw(SDL_Window *window)
     if (window != detail::appear::window)
         return;
 
-    if (!detail::enabled)
-        return;
-
     nn::swkbd::State state = nn::swkbd::GetStateInputForm();
     if (state == nn::swkbd::State::Hidden)
         return;
@@ -645,16 +634,11 @@ void WIIU_SWKBD_Draw(SDL_Window *window)
 
 SDL_bool WIIU_SWKBD_HasScreenKeyboardSupport(_THIS)
 {
-    if (!detail::enabled)
-        return SDL_FALSE;
     return SDL_TRUE;
 }
 
 void WIIU_SWKBD_ShowScreenKeyboard(_THIS, SDL_Window *window)
 {
-    if (!detail::enabled)
-        return;
-
     WIIU_SWKBD_Initialize();
 
     if (!detail::appear::window)
@@ -736,18 +720,6 @@ SDL_bool WIIU_SWKBD_IsScreenKeyboardShown(_THIS, SDL_Window *window)
         return SDL_TRUE;
 
     return SDL_FALSE;
-}
-
-void SDL_WiiUSetSWKBDEnabled(SDL_bool enabled)
-{
-    if (detail::enabled != !!enabled) {
-        detail::enabled = enabled;
-        if (!detail::enabled) {
-            // If application is turning swkbd off, we better free up all memory too.
-            WIIU_SWKBD_Finalize();
-            detail::create::cleanup();
-        }
-    }
 }
 
 void SDL_WiiUSetSWKBDKeyboardMode(SDL_WiiUSWKBDKeyboardMode mode)

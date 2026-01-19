@@ -42,7 +42,7 @@ extern "C" {
 
 /* Platform specific functions for Windows */
 #if defined(__WIN32__) || defined(__GDK__)
-	
+
 typedef void (SDLCALL * SDL_WindowsMessageHook)(void *userdata, void *hWnd, unsigned int message, Uint64 wParam, Sint64 lParam);
 
 /**
@@ -182,9 +182,9 @@ extern DECLSPEC int SDLCALL SDL_LinuxSetThreadPriority(Sint64 threadID, int prio
  * \since This function is available since SDL 2.0.18.
  */
 extern DECLSPEC int SDLCALL SDL_LinuxSetThreadPriorityAndPolicy(Sint64 threadID, int sdlPriority, int schedPolicy);
- 
+
 #endif /* __LINUX__ */
-	
+
 /* Platform specific functions for iOS */
 #ifdef __IPHONEOS__
 
@@ -622,16 +622,6 @@ typedef enum SDL_WiiUSysWMEventType {
     /** Sent after the swkbd was canceled. */
     SDL_WIIU_SYSWM_SWKBD_CANCEL_EVENT
 } SDL_WiiUSysWMEventType;
-
-/**
- * Disable the swkbd.
- *
- * Use this function if you only want text input from a physical USB keyboard.
- *
- * \param enabled `SDL_FALSE` if you do not want the swkbd to show up after calling
- * `SDL_StartTextInput()`.
- */
-extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDEnabled(SDL_bool enabled);
 
 /**
  * Select the swkbd keyboard mode.
