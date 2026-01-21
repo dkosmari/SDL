@@ -212,7 +212,6 @@ void WIIU_SDL_DestroyRenderer(SDL_Renderer * renderer)
     WIIU_SDL_DestroyShaders();
 
     SDL_free(data);
-    SDL_free(renderer);
 }
 
 int WIIU_SDL_RenderReadPixels(SDL_Renderer * renderer, const SDL_Rect * rect,
