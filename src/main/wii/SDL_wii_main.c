@@ -23,7 +23,7 @@ static void ShutdownCB()
 	TerminateRequested = 1;
 	ShutdownRequested = 1;
 }
-static void ResetCB()
+static void ResetCB(u32, void*)
 {
 	TerminateRequested = 1;
 	ResetRequested = 1;
