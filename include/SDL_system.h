@@ -624,16 +624,6 @@ typedef enum SDL_WiiUSysWMEventType {
 } SDL_WiiUSysWMEventType;
 
 /**
- * Disable the swkbd.
- *
- * Use this function if you only want text input from a physical USB keyboard.
- *
- * \param enabled `SDL_FALSE` if you do not want the swkbd to show up after calling
- * `SDL_StartTextInput()`.
- */
-extern DECLSPEC void SDLCALL SDL_WiiUSetSWKBDEnabled(SDL_bool enabled);
-
-/**
  * Select the swkbd keyboard mode.
  *
  * \sa SDL_WiiUSetSWKBDKeyboardMode
