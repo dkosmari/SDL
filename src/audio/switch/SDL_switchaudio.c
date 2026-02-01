@@ -47,17 +47,14 @@ static int
 SWITCHAUDIO_OpenDevice(_THIS, const char *devname)
 {
     static const u8 sink_channels[] = {0, 1};
-    SDL_bool supported_format = SDL_FALSE;
-    SDL_AudioFormat test_format;
     Result res;
     u32 size;
     int mpid;
 
-    this->hidden = (struct SDL_PrivateAudioData *) SDL_malloc(sizeof(*this->hidden));
+    this->hidden = (struct SDL_PrivateAudioData *) SDL_calloc(1, sizeof(*this->hidden));
     if (this->hidden == NULL) {
         return SDL_OutOfMemory();
     }
-    SDL_zerop(this->hidden);
 
     res = audrenInitialize(&arConfig);
     if (R_FAILED(res)) {
@@ -71,20 +68,7 @@ SWITCHAUDIO_OpenDevice(_THIS, const char *devname)
     }
     this->hidden->audr_driver = true;
 
-    test_format = SDL_FirstAudioFormat(this->spec.format);
-    while ((!supported_format) && (test_format)) {
-        if (test_format == AUDIO_S16SYS) {
-            supported_format = SDL_TRUE;
-        }
-        else {
-            test_format = SDL_NextAudioFormat();
-        }
-    }
-    if (!supported_format) {
-        return SDL_SetError("Unsupported audio format");
-    }
-
-    this->spec.format = test_format;
+    this->spec.format = AUDIO_S16SYS;
     SDL_CalculateAudioSpec(&this->spec);
 
     size = (u32) ((this->spec.size * 2) + 0xfff) & ~0xfff;
