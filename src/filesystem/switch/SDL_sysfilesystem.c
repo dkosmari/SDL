@@ -45,21 +45,17 @@ char *
 SDL_GetPrefPath(const char *org, const char *app)
 {
     char *ret = NULL;
-    char buf[PATH_MAX];
+    char buf[PATH_MAX + 1];
     size_t len;
 
-    if (getcwd(buf, PATH_MAX)) {
-        len = strlen(buf) + 2;
-        ret = (char *) SDL_malloc(len);
-        if (!ret) {
-            SDL_OutOfMemory();
-            return NULL;
-        }
-        SDL_snprintf(ret, len, "%s/", buf);
-        return ret;
+    if (getcwd(buf, sizeof(buf) - 1)) {
+        len = strlen(buf);
+        buf[len] =  '/';
+        buf[len + 1] = '\0';
+        ret = SDL_strdup(buf);
     }
 
-    return NULL;
+    return ret;
 }
 
 #endif /* SDL_FILESYSTEM_SWITCH */
