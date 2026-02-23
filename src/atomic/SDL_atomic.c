@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2023 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2025 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -107,10 +107,10 @@ extern __inline int _SDL_xadd_watcom(volatile int *a, int v);
 */
 
 #if !defined(HAVE_MSC_ATOMICS) && !defined(HAVE_GCC_ATOMICS) && !defined(__MACOSX__) && !defined(__SOLARIS__) && !defined(HAVE_WATCOM_ATOMICS) && !defined(__WIIU__)
-#define EMULATE_CAS 1
+#define EMULATE_CAS
 #endif
 
-#if EMULATE_CAS
+#ifdef EMULATE_CAS
 static SDL_SpinLock locks[32];
 
 static SDL_INLINE void enterLock(void *a)
@@ -143,7 +143,7 @@ SDL_bool SDL_AtomicCAS(SDL_atomic_t *a, int oldval, int newval)
     return (SDL_bool) OSAtomicCompareAndSwap32Barrier(oldval, newval, &a->value);
 #elif defined(__SOLARIS__)
     return (SDL_bool)((int)atomic_cas_uint((volatile uint_t *)&a->value, (uint_t)oldval, (uint_t)newval) == oldval);
-#elif EMULATE_CAS
+#elif defined(EMULATE_CAS)
     SDL_bool retval = SDL_FALSE;
 
     enterLock(a);
@@ -175,7 +175,7 @@ SDL_bool SDL_AtomicCASPtr(void **a, void *oldval, void *newval)
     return (SDL_bool) OSAtomicCompareAndSwap32Barrier((int32_t)oldval, (int32_t)newval, (int32_t*) a);
 #elif defined(__SOLARIS__)
     return (SDL_bool)(atomic_cas_ptr(a, oldval, newval) == oldval);
-#elif EMULATE_CAS
+#elif defined(EMULATE_CAS)
     SDL_bool retval = SDL_FALSE;
 
     enterLock(a);
@@ -273,7 +273,7 @@ int SDL_AtomicGet(SDL_atomic_t *a)
 #elif defined(__MACOSX__)  /* this is deprecated in 10.12 sdk; favor gcc atomics. */
     return sizeof(a->value) == sizeof(uint32_t) ? OSAtomicOr32Barrier(0, (volatile uint32_t *)&a->value) : OSAtomicAdd64Barrier(0, (volatile int64_t *)&a->value);
 #elif defined(__SOLARIS__)
-    return atomic_or_uint((volatile uint_t *)&a->value, 0);
+    return atomic_or_uint_nv((volatile uint_t *)&a->value, 0);
 #else
     int value;
     do {
